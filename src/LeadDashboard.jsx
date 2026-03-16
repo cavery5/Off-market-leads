@@ -196,12 +196,12 @@ function importCSV(text, currentYear) {
 }
 
 const DEFAULT_FILTERS = {
-  city: "All", minUnits: 0, maxPrice: 5000000, minEquity: 0,
-  minYearsOwned: 0, ownerType: "All", status: "All", search: "", useCodes: "",
+  city: "All", minUnits: 0, maxUnits: 9999, maxPrice: 5000000, minEquity: 0,
+  minYearsOwned: 0, ownerType: "All", status: "All", search: "",
 };
 
 export default function LeadDashboard() {
-  const [leads, setLeads]       = useState(SAMPLE_LEADS);
+  const [leads, setLeads]       = useState([]);
   const [filters, setFilters]   = useState(DEFAULT_FILTERS);
   const [sort, setSort]         = useState({ field: "score", dir: "desc" });
   const [selected, setSelected] = useState(null);
@@ -209,6 +209,7 @@ export default function LeadDashboard() {
   const [newLead, setNewLead]   = useState(EMPTY_NEW_LEAD);
   const [activeTab, setActiveTab]   = useState("leads");
   const [importResult, setImportResult] = useState(null); // { added, skipped, errors }
+  const [importMode, setImportMode] = useState("append"); // "append" | "replace"
 
   const cities     = useMemo(() => ["All", ...Array.from(new Set(leads.map(l => l.city))).sort()], [leads]);
   const ownerTypes = ["All", "Individual", "LLC", "Trust", "Estate"];
@@ -219,16 +220,13 @@ export default function LeadDashboard() {
       const estValue   = l.assessed * 1.1;
       if (filters.city      !== "All" && l.city      !== filters.city)      return false;
       if (l.units < filters.minUnits)                                        return false;
+      if (l.units > filters.maxUnits)                                        return false;
       if (estValue > filters.maxPrice)                                       return false;
       if (l.equity < filters.minEquity)                                      return false;
       if (yearsOwned < filters.minYearsOwned)                                return false;
       if (filters.ownerType !== "All" && l.ownerType !== filters.ownerType) return false;
       if (filters.status    !== "All" && l.status    !== filters.status)    return false;
       if (filters.search && !`${l.address} ${l.city} ${l.ownerName}`.toLowerCase().includes(filters.search.toLowerCase())) return false;
-      if (filters.useCodes.trim()) {
-        const allowed = filters.useCodes.split(",").map(c => c.trim().toUpperCase());
-        if (!allowed.includes((l.useCode || "").toUpperCase())) return false;
-      }
       return true;
     });
 
@@ -319,16 +317,22 @@ export default function LeadDashboard() {
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = ""; // reset so same file can be re-imported
+    const mode = importMode;
     const reader = new FileReader();
     reader.onload = (ev) => {
       const { leads: newLeads, errors } = importCSV(ev.target.result, CURRENT_YEAR);
       if (newLeads.length > 0) {
-        setLeads(prev => {
-          const existingAddrs = new Set(prev.map(l => l.address.toLowerCase()));
-          const fresh = newLeads.filter(l => !existingAddrs.has(l.address.toLowerCase()));
-          setImportResult({ added: fresh.length, skipped: newLeads.length - fresh.length, errors });
-          return [...prev, ...fresh];
-        });
+        if (mode === "replace") {
+          setLeads(newLeads);
+          setImportResult({ added: newLeads.length, skipped: 0, errors, replaced: true });
+        } else {
+          setLeads(prev => {
+            const existingAddrs = new Set(prev.map(l => l.address.toLowerCase()));
+            const fresh = newLeads.filter(l => !existingAddrs.has(l.address.toLowerCase()));
+            setImportResult({ added: fresh.length, skipped: newLeads.length - fresh.length, errors });
+            return [...prev, ...fresh];
+          });
+        }
       } else {
         setImportResult({ added: 0, skipped: 0, errors: errors.length ? errors : ["No valid leads found in file."] });
       }
@@ -368,8 +372,12 @@ export default function LeadDashboard() {
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <button className="btn" onClick={() => setShowAdd(true)} style={{ background: "#d4a843", color: "#060b14", padding: "7px 14px", borderRadius: 4 }}>+ ADD LEAD</button>
-            <label className="btn" style={{ background: "#10b981", color: "#fff", padding: "7px 14px", borderRadius: 4, cursor: "pointer" }}>
-              ↑ IMPORT CSV
+            <label className="btn" style={{ background: "#10b981", color: "#fff", padding: "7px 14px", borderRadius: 4, cursor: "pointer" }} onClick={() => setImportMode("append")}>
+              ↑ APPEND CSV
+              <input ref={importFileRef} type="file" accept=".csv,.dbf,.txt" style={{ display: "none" }} onChange={handleImportCSV} />
+            </label>
+            <label className="btn" style={{ background: "#1e4d3a", color: "#10b981", padding: "7px 14px", borderRadius: 4, cursor: "pointer", border: "1px solid #10b981" }} onClick={() => setImportMode("replace")}>
+              ↑ REPLACE CSV
               <input type="file" accept=".csv,.dbf,.txt" style={{ display: "none" }} onChange={handleImportCSV} />
             </label>
             <button className="btn" onClick={exportCSV} style={{ background: "#1e2d45", color: "#94a3b8", padding: "7px 14px", borderRadius: 4 }}>↓ EXPORT CSV</button>
@@ -392,7 +400,9 @@ export default function LeadDashboard() {
         <div style={{ background: importResult.errors.length ? "#1a0e0e" : "#0d1f15", borderBottom: `1px solid ${importResult.errors.length ? "#ef4444" : "#10b981"}40`, padding: "10px 24px", display: "flex", alignItems: "center", gap: 16, fontSize: 11 }}>
           <span style={{ color: importResult.errors.length && importResult.added === 0 ? "#ef4444" : "#10b981", fontWeight: 600 }}>
             {importResult.added > 0
-              ? `✓ Imported ${importResult.added} lead${importResult.added !== 1 ? "s" : ""}${importResult.skipped > 0 ? ` (${importResult.skipped} duplicate${importResult.skipped !== 1 ? "s" : ""} skipped)` : ""}`
+              ? importResult.replaced
+                ? `✓ Replaced all leads — ${importResult.added} loaded`
+                : `✓ Appended ${importResult.added} lead${importResult.added !== 1 ? "s" : ""}${importResult.skipped > 0 ? ` (${importResult.skipped} duplicate${importResult.skipped !== 1 ? "s" : ""} skipped)` : ""}`
               : importResult.errors[0] || "No leads imported"}
           </span>
           {importResult.errors.length > 0 && importResult.added > 0 && (
@@ -432,8 +442,8 @@ export default function LeadDashboard() {
               ["CITY",          <select key="city"      className="filter-input" value={filters.city}      onChange={e => setFilter("city",        e.target.value)}>{cities.map(c => <option key={c}>{c}</option>)}</select>],
               ["STATUS",        <select key="status"    className="filter-input" value={filters.status}    onChange={e => setFilter("status",      e.target.value)}>{["All", ...STATUS_OPTIONS].map(s => <option key={s}>{s}</option>)}</select>],
               ["OWNER TYPE",    <select key="ownerType" className="filter-input" value={filters.ownerType} onChange={e => setFilter("ownerType",   e.target.value)}>{ownerTypes.map(t => <option key={t}>{t}</option>)}</select>],
-              ["USE CODES",     <input  key="useCodes"  className="filter-input" placeholder="3200, 1110, 1120" value={filters.useCodes} onChange={e => setFilter("useCodes", e.target.value)} />],
-              ["MIN UNITS",     <input  key="minUnits"  className="filter-input" type="number" value={filters.minUnits}    onChange={e => setFilter("minUnits",    +e.target.value)} />],
+              ["MIN UNITS",     <input  key="minUnits"  className="filter-input" type="number" min="0" value={filters.minUnits}    onChange={e => setFilter("minUnits",    +e.target.value)} />],
+              ["MAX UNITS",     <input  key="maxUnits"  className="filter-input" type="number" min="0" value={filters.maxUnits === 9999 ? "" : filters.maxUnits} placeholder="no limit" onChange={e => setFilter("maxUnits", e.target.value === "" ? 9999 : +e.target.value)} />],
               ["MIN EQUITY %",  <input  key="minEq"     className="filter-input" type="number" value={filters.minEquity}   onChange={e => setFilter("minEquity",   +e.target.value)} />],
               ["MIN YRS OWNED", <input  key="minYrs"    className="filter-input" type="number" value={filters.minYearsOwned} onChange={e => setFilter("minYearsOwned", +e.target.value)} />],
             ].map(([label, el]) => (
