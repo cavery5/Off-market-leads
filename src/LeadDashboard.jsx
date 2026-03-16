@@ -115,6 +115,8 @@ function inferOwnerType(name) {
 function parseSaleYear(raw) {
   if (!raw) return 2010;
   const s = String(raw).trim();
+  // MassGIS stores LS_DATE as YYYYMMDD integer (e.g. 20050615)
+  if (/^\d{8}$/.test(s)) return parseInt(s.slice(0, 4), 10);
   const m = s.match(/\b(19|20)\d{2}\b/);
   return m ? parseInt(m[0], 10) : 2010;
 }
@@ -164,11 +166,14 @@ function importCSV(text, currentYear) {
     const ownerAddress = [get("ownerAddress"), get("ownerCity"), get("ownerState"), get("ownerZip")]
       .filter(Boolean).join(", ") || "";
 
-    const equity = assessed && lastPrice
-      ? Math.max(0, Math.round(((assessed - lastPrice * 0.5) / assessed) * 100))
-      : 70;
     const yearsOwned = currentYear - lastSale;
-    const score      = Math.min(99, Math.max(0, Math.round(equity * 0.5 + yearsOwned * 2 + 20)));
+    // lastPrice=0 is common in MA data (family transfers, inherited) — treat as unknown
+    const equity = assessed > 0 && lastPrice > 0
+      ? Math.max(0, Math.round(((assessed - lastPrice * 0.5) / assessed) * 100))
+      : assessed > 0
+        ? Math.min(95, Math.max(40, Math.round(40 + yearsOwned * 2)))  // estimate from hold time
+        : 70;
+    const score = Math.min(99, Math.max(0, Math.round(equity * 0.5 + yearsOwned * 2 + 20)));
 
     leads.push({
       id: Date.now() + i,
