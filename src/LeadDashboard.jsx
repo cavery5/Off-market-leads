@@ -374,7 +374,7 @@ export default function LeadDashboard() {
             <button className="btn" onClick={() => setShowAdd(true)} style={{ background: "#d4a843", color: "#060b14", padding: "7px 14px", borderRadius: 4 }}>+ ADD LEAD</button>
             <label className="btn" style={{ background: "#10b981", color: "#fff", padding: "7px 14px", borderRadius: 4, cursor: "pointer" }} onClick={() => setImportMode("append")}>
               ↑ APPEND CSV
-              <input ref={importFileRef} type="file" accept=".csv,.dbf,.txt" style={{ display: "none" }} onChange={handleImportCSV} />
+              <input type="file" accept=".csv,.dbf,.txt" style={{ display: "none" }} onChange={handleImportCSV} />
             </label>
             <label className="btn" style={{ background: "#1e4d3a", color: "#10b981", padding: "7px 14px", borderRadius: 4, cursor: "pointer", border: "1px solid #10b981" }} onClick={() => setImportMode("replace")}>
               ↑ REPLACE CSV
