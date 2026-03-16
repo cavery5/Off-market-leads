@@ -55,6 +55,136 @@ const EMPTY_NEW_LEAD = {
   assessed: "", ownerName: "", ownerAddress: "", ownerType: "Individual", phone: "", notes: "",
 };
 
+// ── CSV Import helpers ──────────────────────────────────────────────────────
+
+// Maps various MassGIS / generic CSV column names to our internal field names
+const COL_MAP = {
+  // Address
+  address:      ["address","addr","site_addr","loc_addr","situs","property_address","street","full_str","prop_addr"],
+  city:         ["city","town","municipality","muni"],
+  units:        ["units","num_units","numunits","unit_count","bldg_units","res_units"],
+  lastSale:     ["lastsale","last_sale","last_sale_year","ls_year","sale_year","yr_sold","year_sold","LS_DATE"],
+  lastPrice:    ["lastprice","last_price","ls_price","sale_price","saleprice"],
+  assessed:     ["assessed","total_val","totalval","assess_val","assd_val","assr_val","total_value","assessed_value"],
+  ownerName:    ["ownername","owner_name","owner","owner1","own1","grantor"],
+  ownerAddress: ["owneraddress","owner_address","own_addr","mail_addr","mailing_address","owner_addr"],
+  ownerType:    ["ownertype","owner_type","entity_type"],
+  phone:        ["phone","telephone","phone_num"],
+  lotSF:        ["lotsf","lot_sf","lot_size","lotsize","land_sf","shape_area"],
+  yearBuilt:    ["yearbuilt","year_built","yr_built","yr_blt","bldg_year"],
+  useCode:      ["usecode","use_code","use_cd","luc","land_use","prop_class"],
+  notes:        ["notes","note","comments"],
+};
+
+function normalizeKey(k) { return k.toLowerCase().replace(/[^a-z0-9_]/g, ""); }
+
+function detectColumns(headers) {
+  const norm = headers.map(normalizeKey);
+  const map  = {};
+  for (const [field, aliases] of Object.entries(COL_MAP)) {
+    const idx = norm.findIndex(h => aliases.some(a => a.toLowerCase() === h || h.includes(a.toLowerCase())));
+    if (idx !== -1) map[field] = idx;
+  }
+  return map;
+}
+
+function parseCSVRow(line) {
+  const fields = [];
+  let cur = "", inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') { inQ = !inQ; continue; }
+    if (ch === "," && !inQ) { fields.push(cur.trim()); cur = ""; continue; }
+    cur += ch;
+  }
+  fields.push(cur.trim());
+  return fields;
+}
+
+function inferOwnerType(name) {
+  const n = (name || "").toUpperCase();
+  if (/\bLLC\b|\bL\.L\.C\b|\bINC\b|\bCORP\b|\bLTD\b|\bLP\b/.test(n)) return "LLC";
+  if (/\bTRUST\b|\bTRUSTEE\b/.test(n)) return "Trust";
+  if (/\bESTATE\b/.test(n)) return "Estate";
+  return "Individual";
+}
+
+function parseSaleYear(raw) {
+  if (!raw) return 2010;
+  // Handle date formats like "20031205" or "2003-12-05" or "12/5/2003" or just "2003"
+  const s = String(raw).trim();
+  const m = s.match(/\b(19|20)\d{2}\b/);
+  return m ? parseInt(m[0], 10) : 2010;
+}
+
+function importCSV(text, currentYear) {
+  const lines  = text.trim().split(/\r?\n/);
+  if (lines.length < 2) return { leads: [], errors: ["File appears empty or has no data rows."] };
+
+  const headers = parseCSVRow(lines[0]);
+  const colMap  = detectColumns(headers);
+  const errors  = [];
+  const leads   = [];
+
+  // If we couldn't detect address at all, give up
+  if (colMap.address === undefined && colMap.city === undefined) {
+    errors.push("Could not identify property columns. Make sure the file has headers like ADDRESS, CITY, OWNER, etc.");
+    return { leads, errors };
+  }
+
+  for (let i = 1; i < lines.length; i++) {
+    if (!lines[i].trim()) continue;
+    const row = parseCSVRow(lines[i]);
+
+    const get = (field, fallback = "") => {
+      const idx = colMap[field];
+      return idx !== undefined && row[idx] !== undefined ? String(row[idx]).trim() : fallback;
+    };
+
+    const address = get("address");
+    if (!address) continue; // skip rows with no address
+
+    const units     = parseInt(get("units", "0"), 10) || 0;
+    const lastSale  = parseSaleYear(get("lastSale"));
+    const lastPrice = parseInt(get("lastPrice", "0").replace(/[^0-9]/g, ""), 10) || 0;
+    const assessed  = parseInt(get("assessed", "0").replace(/[^0-9]/g, ""), 10) || 0;
+    const ownerName = get("ownerName");
+    const ownerType = get("ownerType") || inferOwnerType(ownerName);
+    const yearBuilt = parseInt(get("yearBuilt", "1970"), 10) || 1970;
+    const lotSF     = parseInt(get("lotSF", "8000").replace(/[^0-9]/g, ""), 10) || 8000;
+    const useCode   = get("useCode", "320");
+
+    const equity = assessed && lastPrice
+      ? Math.max(0, Math.round(((assessed - lastPrice * 0.5) / assessed) * 100))
+      : 70;
+    const yearsOwned = currentYear - lastSale;
+    const score      = Math.min(99, Math.max(0, Math.round(equity * 0.5 + yearsOwned * 2 + 20)));
+
+    leads.push({
+      id:           Date.now() + i,
+      address,
+      city:         get("city", "Unknown"),
+      units,
+      lastSale,
+      lastPrice,
+      assessed,
+      equity,
+      score,
+      ownerName,
+      ownerAddress: get("ownerAddress"),
+      ownerType:    ["Individual","LLC","Trust","Estate"].includes(ownerType) ? ownerType : inferOwnerType(ownerName),
+      phone:        get("phone"),
+      notes:        get("notes"),
+      status:       "Not Contacted",
+      yearBuilt,
+      lotSF,
+      useCode,
+    });
+  }
+
+  return { leads, errors };
+}
+
 const DEFAULT_FILTERS = {
   city: "All", minUnits: 10, maxPrice: 5000000, minEquity: 60,
   minYearsOwned: 10, ownerType: "All", status: "All", search: "",
@@ -67,7 +197,8 @@ export default function LeadDashboard() {
   const [selected, setSelected] = useState(null);
   const [showAdd, setShowAdd]   = useState(false);
   const [newLead, setNewLead]   = useState(EMPTY_NEW_LEAD);
-  const [activeTab, setActiveTab] = useState("leads");
+  const [activeTab, setActiveTab]   = useState("leads");
+  const [importResult, setImportResult] = useState(null); // { added, skipped, errors }
 
   const cities     = useMemo(() => ["All", ...Array.from(new Set(leads.map(l => l.city))).sort()], [leads]);
   const ownerTypes = ["All", "Individual", "LLC", "Trust", "Estate"];
@@ -170,6 +301,27 @@ export default function LeadDashboard() {
   const handleSort = (field) =>
     setSort(prev => ({ field, dir: prev.field === field && prev.dir === "asc" ? "desc" : "asc" }));
 
+  const handleImportCSV = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = ""; // reset so same file can be re-imported
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const { leads: newLeads, errors } = importCSV(ev.target.result, CURRENT_YEAR);
+      if (newLeads.length > 0) {
+        setLeads(prev => {
+          const existingAddrs = new Set(prev.map(l => l.address.toLowerCase()));
+          const fresh = newLeads.filter(l => !existingAddrs.has(l.address.toLowerCase()));
+          setImportResult({ added: fresh.length, skipped: newLeads.length - fresh.length, errors });
+          return [...prev, ...fresh];
+        });
+      } else {
+        setImportResult({ added: 0, skipped: 0, errors: errors.length ? errors : ["No valid leads found in file."] });
+      }
+    };
+    reader.readAsText(file);
+  };
+
   const setFilter = (key, value) => setFilters(prev => ({ ...prev, [key]: value }));
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -200,9 +352,13 @@ export default function LeadDashboard() {
             <span style={{ fontFamily: "'Libre Baskerville', serif", fontSize: 15, fontWeight: 700, color: "#d4a843", letterSpacing: "0.05em" }}>MASSLEADS</span>
             <span style={{ fontSize: 10, color: "#4a5568", letterSpacing: "0.1em" }}>MA MULTIFAMILY PROSPECTOR</span>
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <button className="btn" onClick={() => setShowAdd(true)} style={{ background: "#d4a843", color: "#060b14", padding: "7px 14px", borderRadius: 4 }}>+ ADD LEAD</button>
-            <button className="btn" onClick={exportCSV}             style={{ background: "#1e2d45", color: "#94a3b8",  padding: "7px 14px", borderRadius: 4 }}>↓ EXPORT CSV</button>
+            <label className="btn" style={{ background: "#10b981", color: "#fff", padding: "7px 14px", borderRadius: 4, cursor: "pointer" }}>
+              ↑ IMPORT CSV
+              <input type="file" accept=".csv,.dbf,.txt" style={{ display: "none" }} onChange={handleImportCSV} />
+            </label>
+            <button className="btn" onClick={exportCSV} style={{ background: "#1e2d45", color: "#94a3b8", padding: "7px 14px", borderRadius: 4 }}>↓ EXPORT CSV</button>
           </div>
         </div>
 
@@ -216,6 +372,21 @@ export default function LeadDashboard() {
           ))}
         </div>
       </div>
+
+      {/* ── Import result banner ── */}
+      {importResult && (
+        <div style={{ background: importResult.errors.length ? "#1a0e0e" : "#0d1f15", borderBottom: `1px solid ${importResult.errors.length ? "#ef4444" : "#10b981"}40`, padding: "10px 24px", display: "flex", alignItems: "center", gap: 16, fontSize: 11 }}>
+          <span style={{ color: importResult.errors.length && importResult.added === 0 ? "#ef4444" : "#10b981", fontWeight: 600 }}>
+            {importResult.added > 0
+              ? `✓ Imported ${importResult.added} lead${importResult.added !== 1 ? "s" : ""}${importResult.skipped > 0 ? ` (${importResult.skipped} duplicate${importResult.skipped !== 1 ? "s" : ""} skipped)` : ""}`
+              : importResult.errors[0] || "No leads imported"}
+          </span>
+          {importResult.errors.length > 0 && importResult.added > 0 && (
+            <span style={{ color: "#f59e0b" }}>{importResult.errors.join(" · ")}</span>
+          )}
+          <button className="btn" onClick={() => setImportResult(null)} style={{ marginLeft: "auto", background: "none", color: "#4a5568", padding: "2px 8px", fontSize: 11 }}>✕</button>
+        </div>
+      )}
 
       {/* ── LEADS TAB ── */}
       {activeTab === "leads" && (
