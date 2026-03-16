@@ -196,8 +196,8 @@ function importCSV(text, currentYear) {
 }
 
 const DEFAULT_FILTERS = {
-  city: "All", minUnits: 0, maxPrice: 5000000, minEquity: 0,
-  minYearsOwned: 0, ownerType: "All", status: "All", search: "", useCodes: "",
+  city: "All", minUnits: 0, maxUnits: 9999, maxPrice: 5000000, minEquity: 0,
+  minYearsOwned: 0, ownerType: "All", status: "All", search: "",
 };
 
 export default function LeadDashboard() {
@@ -220,16 +220,13 @@ export default function LeadDashboard() {
       const estValue   = l.assessed * 1.1;
       if (filters.city      !== "All" && l.city      !== filters.city)      return false;
       if (l.units < filters.minUnits)                                        return false;
+      if (l.units > filters.maxUnits)                                        return false;
       if (estValue > filters.maxPrice)                                       return false;
       if (l.equity < filters.minEquity)                                      return false;
       if (yearsOwned < filters.minYearsOwned)                                return false;
       if (filters.ownerType !== "All" && l.ownerType !== filters.ownerType) return false;
       if (filters.status    !== "All" && l.status    !== filters.status)    return false;
       if (filters.search && !`${l.address} ${l.city} ${l.ownerName}`.toLowerCase().includes(filters.search.toLowerCase())) return false;
-      if (filters.useCodes.trim()) {
-        const allowed = filters.useCodes.split(",").map(c => c.trim().toUpperCase());
-        if (!allowed.includes((l.useCode || "").toUpperCase())) return false;
-      }
       return true;
     });
 
@@ -445,8 +442,8 @@ export default function LeadDashboard() {
               ["CITY",          <select key="city"      className="filter-input" value={filters.city}      onChange={e => setFilter("city",        e.target.value)}>{cities.map(c => <option key={c}>{c}</option>)}</select>],
               ["STATUS",        <select key="status"    className="filter-input" value={filters.status}    onChange={e => setFilter("status",      e.target.value)}>{["All", ...STATUS_OPTIONS].map(s => <option key={s}>{s}</option>)}</select>],
               ["OWNER TYPE",    <select key="ownerType" className="filter-input" value={filters.ownerType} onChange={e => setFilter("ownerType",   e.target.value)}>{ownerTypes.map(t => <option key={t}>{t}</option>)}</select>],
-              ["USE CODES",     <input  key="useCodes"  className="filter-input" placeholder="3200, 1110, 1120" value={filters.useCodes} onChange={e => setFilter("useCodes", e.target.value)} />],
-              ["MIN UNITS",     <input  key="minUnits"  className="filter-input" type="number" value={filters.minUnits}    onChange={e => setFilter("minUnits",    +e.target.value)} />],
+              ["MIN UNITS",     <input  key="minUnits"  className="filter-input" type="number" min="0" value={filters.minUnits}    onChange={e => setFilter("minUnits",    +e.target.value)} />],
+              ["MAX UNITS",     <input  key="maxUnits"  className="filter-input" type="number" min="0" value={filters.maxUnits === 9999 ? "" : filters.maxUnits} placeholder="no limit" onChange={e => setFilter("maxUnits", e.target.value === "" ? 9999 : +e.target.value)} />],
               ["MIN EQUITY %",  <input  key="minEq"     className="filter-input" type="number" value={filters.minEquity}   onChange={e => setFilter("minEquity",   +e.target.value)} />],
               ["MIN YRS OWNED", <input  key="minYrs"    className="filter-input" type="number" value={filters.minYearsOwned} onChange={e => setFilter("minYearsOwned", +e.target.value)} />],
             ].map(([label, el]) => (
