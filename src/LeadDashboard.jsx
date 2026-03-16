@@ -59,20 +59,22 @@ const EMPTY_NEW_LEAD = {
 
 // Maps various MassGIS / generic CSV column names to our internal field names
 const COL_MAP = {
-  // Address
-  address:      ["address","addr","site_addr","loc_addr","situs","property_address","street","full_str","prop_addr"],
+  address:      ["site_addr","address","addr","loc_addr","situs","property_address","street","full_str","prop_addr"],
   city:         ["city","town","municipality","muni"],
   units:        ["units","num_units","numunits","unit_count","bldg_units","res_units"],
-  lastSale:     ["lastsale","last_sale","last_sale_year","ls_year","sale_year","yr_sold","year_sold","LS_DATE"],
-  lastPrice:    ["lastprice","last_price","ls_price","sale_price","saleprice"],
-  assessed:     ["assessed","total_val","totalval","assess_val","assd_val","assr_val","total_value","assessed_value"],
-  ownerName:    ["ownername","owner_name","owner","owner1","own1","grantor"],
-  ownerAddress: ["owneraddress","owner_address","own_addr","mail_addr","mailing_address","owner_addr"],
+  lastSale:     ["ls_date","lastsale","last_sale","last_sale_year","ls_year","sale_year","yr_sold","year_sold"],
+  lastPrice:    ["ls_price","lastprice","last_price","sale_price","saleprice"],
+  assessed:     ["total_val","assessed","totalval","assess_val","assd_val","assr_val","total_value","assessed_value"],
+  ownerName:    ["owner1","ownername","owner_name","owner","own1","grantor"],
+  ownerAddress: ["own_addr","owneraddress","owner_address","mail_addr","mailing_address","owner_addr"],
+  ownerCity:    ["own_city","ownercity","mail_city","owner_city"],
+  ownerState:   ["own_state","ownerstate","mail_state","owner_state"],
+  ownerZip:     ["own_zip","ownerzip","mail_zip","owner_zip"],
   ownerType:    ["ownertype","owner_type","entity_type"],
   phone:        ["phone","telephone","phone_num"],
-  lotSF:        ["lotsf","lot_sf","lot_size","lotsize","land_sf","shape_area"],
-  yearBuilt:    ["yearbuilt","year_built","yr_built","yr_blt","bldg_year"],
-  useCode:      ["usecode","use_code","use_cd","luc","land_use","prop_class"],
+  lotSize:      ["lot_size","lotsf","lot_sf","lotsize","land_sf","shape_area"],
+  yearBuilt:    ["year_built","yearbuilt","yr_built","yr_blt","bldg_year"],
+  useCode:      ["use_code","usecode","use_cd","luc","land_use","prop_class"],
   notes:        ["notes","note","comments"],
 };
 
@@ -82,13 +84,14 @@ function detectColumns(headers) {
   const norm = headers.map(normalizeKey);
   const map  = {};
   for (const [field, aliases] of Object.entries(COL_MAP)) {
-    const idx = norm.findIndex(h => aliases.some(a => a.toLowerCase() === h || h.includes(a.toLowerCase())));
+    const idx = norm.findIndex(h => aliases.some(a => a.toLowerCase() === h));
     if (idx !== -1) map[field] = idx;
   }
   return map;
 }
 
-function parseCSVRow(line) {
+function parseCSVRow(line, delim = ",") {
+  if (delim === "\t") return line.split("\t").map(f => f.trim());
   const fields = [];
   let cur = "", inQ = false;
   for (let i = 0; i < line.length; i++) {
@@ -111,30 +114,30 @@ function inferOwnerType(name) {
 
 function parseSaleYear(raw) {
   if (!raw) return 2010;
-  // Handle date formats like "20031205" or "2003-12-05" or "12/5/2003" or just "2003"
   const s = String(raw).trim();
   const m = s.match(/\b(19|20)\d{2}\b/);
   return m ? parseInt(m[0], 10) : 2010;
 }
 
 function importCSV(text, currentYear) {
-  const lines  = text.trim().split(/\r?\n/);
+  const lines = text.trim().split(/\r?\n/);
   if (lines.length < 2) return { leads: [], errors: ["File appears empty or has no data rows."] };
 
-  const headers = parseCSVRow(lines[0]);
+  // Auto-detect delimiter: tab or comma
+  const delim   = lines[0].includes("\t") ? "\t" : ",";
+  const headers = parseCSVRow(lines[0], delim);
   const colMap  = detectColumns(headers);
   const errors  = [];
   const leads   = [];
 
-  // If we couldn't detect address at all, give up
-  if (colMap.address === undefined && colMap.city === undefined) {
-    errors.push("Could not identify property columns. Make sure the file has headers like ADDRESS, CITY, OWNER, etc.");
+  if (colMap.address === undefined) {
+    errors.push("Could not find address column. Expected SITE_ADDR, ADDRESS, or similar.");
     return { leads, errors };
   }
 
   for (let i = 1; i < lines.length; i++) {
     if (!lines[i].trim()) continue;
-    const row = parseCSVRow(lines[i]);
+    const row = parseCSVRow(lines[i], delim);
 
     const get = (field, fallback = "") => {
       const idx = colMap[field];
@@ -142,17 +145,24 @@ function importCSV(text, currentYear) {
     };
 
     const address = get("address");
-    if (!address) continue; // skip rows with no address
+    if (!address) continue;
 
     const units     = parseInt(get("units", "0"), 10) || 0;
     const lastSale  = parseSaleYear(get("lastSale"));
     const lastPrice = parseInt(get("lastPrice", "0").replace(/[^0-9]/g, ""), 10) || 0;
-    const assessed  = parseInt(get("assessed", "0").replace(/[^0-9]/g, ""), 10) || 0;
+    const assessed  = parseInt(get("assessed",  "0").replace(/[^0-9]/g, ""), 10) || 0;
     const ownerName = get("ownerName");
     const ownerType = get("ownerType") || inferOwnerType(ownerName);
     const yearBuilt = parseInt(get("yearBuilt", "1970"), 10) || 1970;
-    const lotSF     = parseInt(get("lotSF", "8000").replace(/[^0-9]/g, ""), 10) || 8000;
-    const useCode   = get("useCode", "320");
+    const useCode   = get("useCode", "");
+
+    // LOT_SIZE in MassGIS is acres (e.g. 2.06) — convert to SF if < 100
+    const lotRaw = parseFloat(get("lotSize", "0")) || 0;
+    const lotSF  = lotRaw > 0 && lotRaw < 100 ? Math.round(lotRaw * 43560) : Math.round(lotRaw) || 8000;
+
+    // Combine owner address parts (MassGIS splits into OWN_ADDR / OWN_CITY / OWN_STATE / OWN_ZIP)
+    const ownerAddress = [get("ownerAddress"), get("ownerCity"), get("ownerState"), get("ownerZip")]
+      .filter(Boolean).join(", ") || "";
 
     const equity = assessed && lastPrice
       ? Math.max(0, Math.round(((assessed - lastPrice * 0.5) / assessed) * 100))
@@ -161,7 +171,7 @@ function importCSV(text, currentYear) {
     const score      = Math.min(99, Math.max(0, Math.round(equity * 0.5 + yearsOwned * 2 + 20)));
 
     leads.push({
-      id:           Date.now() + i,
+      id: Date.now() + i,
       address,
       city:         get("city", "Unknown"),
       units,
@@ -171,11 +181,11 @@ function importCSV(text, currentYear) {
       equity,
       score,
       ownerName,
-      ownerAddress: get("ownerAddress"),
-      ownerType:    ["Individual","LLC","Trust","Estate"].includes(ownerType) ? ownerType : inferOwnerType(ownerName),
-      phone:        get("phone"),
-      notes:        get("notes"),
-      status:       "Not Contacted",
+      ownerAddress,
+      ownerType: ["Individual","LLC","Trust","Estate"].includes(ownerType) ? ownerType : inferOwnerType(ownerName),
+      phone:     get("phone"),
+      notes:     get("notes"),
+      status:    "Not Contacted",
       yearBuilt,
       lotSF,
       useCode,
@@ -186,8 +196,8 @@ function importCSV(text, currentYear) {
 }
 
 const DEFAULT_FILTERS = {
-  city: "All", minUnits: 10, maxPrice: 5000000, minEquity: 60,
-  minYearsOwned: 10, ownerType: "All", status: "All", search: "",
+  city: "All", minUnits: 0, maxPrice: 5000000, minEquity: 0,
+  minYearsOwned: 0, ownerType: "All", status: "All", search: "", useCodes: "",
 };
 
 export default function LeadDashboard() {
@@ -215,6 +225,10 @@ export default function LeadDashboard() {
       if (filters.ownerType !== "All" && l.ownerType !== filters.ownerType) return false;
       if (filters.status    !== "All" && l.status    !== filters.status)    return false;
       if (filters.search && !`${l.address} ${l.city} ${l.ownerName}`.toLowerCase().includes(filters.search.toLowerCase())) return false;
+      if (filters.useCodes.trim()) {
+        const allowed = filters.useCodes.split(",").map(c => c.trim().toUpperCase());
+        if (!allowed.includes((l.useCode || "").toUpperCase())) return false;
+      }
       return true;
     });
 
@@ -414,13 +428,14 @@ export default function LeadDashboard() {
             <div style={{ fontSize: 9, color: "#4a5568", letterSpacing: "0.15em", marginBottom: 12 }}>FILTER BY</div>
 
             {[
-              ["SEARCH",       <input    key="search"    className="filter-input" placeholder="address, name..." value={filters.search}    onChange={e => setFilter("search",       e.target.value)} />],
-              ["CITY",         <select   key="city"      className="filter-input" value={filters.city}      onChange={e => setFilter("city",        e.target.value)}>{cities.map(c => <option key={c}>{c}</option>)}</select>],
-              ["STATUS",       <select   key="status"    className="filter-input" value={filters.status}    onChange={e => setFilter("status",      e.target.value)}>{["All", ...STATUS_OPTIONS].map(s => <option key={s}>{s}</option>)}</select>],
-              ["OWNER TYPE",   <select   key="ownerType" className="filter-input" value={filters.ownerType} onChange={e => setFilter("ownerType",   e.target.value)}>{ownerTypes.map(t => <option key={t}>{t}</option>)}</select>],
-              ["MIN UNITS",    <input    key="minUnits"  className="filter-input" type="number" value={filters.minUnits}    onChange={e => setFilter("minUnits",    +e.target.value)} />],
-              ["MIN EQUITY %", <input    key="minEq"     className="filter-input" type="number" value={filters.minEquity}   onChange={e => setFilter("minEquity",   +e.target.value)} />],
-              ["MIN YRS OWNED",<input    key="minYrs"    className="filter-input" type="number" value={filters.minYearsOwned} onChange={e => setFilter("minYearsOwned", +e.target.value)} />],
+              ["SEARCH",        <input  key="search"    className="filter-input" placeholder="address, name..." value={filters.search}    onChange={e => setFilter("search",       e.target.value)} />],
+              ["CITY",          <select key="city"      className="filter-input" value={filters.city}      onChange={e => setFilter("city",        e.target.value)}>{cities.map(c => <option key={c}>{c}</option>)}</select>],
+              ["STATUS",        <select key="status"    className="filter-input" value={filters.status}    onChange={e => setFilter("status",      e.target.value)}>{["All", ...STATUS_OPTIONS].map(s => <option key={s}>{s}</option>)}</select>],
+              ["OWNER TYPE",    <select key="ownerType" className="filter-input" value={filters.ownerType} onChange={e => setFilter("ownerType",   e.target.value)}>{ownerTypes.map(t => <option key={t}>{t}</option>)}</select>],
+              ["USE CODES",     <input  key="useCodes"  className="filter-input" placeholder="3200, 1110, 1120" value={filters.useCodes} onChange={e => setFilter("useCodes", e.target.value)} />],
+              ["MIN UNITS",     <input  key="minUnits"  className="filter-input" type="number" value={filters.minUnits}    onChange={e => setFilter("minUnits",    +e.target.value)} />],
+              ["MIN EQUITY %",  <input  key="minEq"     className="filter-input" type="number" value={filters.minEquity}   onChange={e => setFilter("minEquity",   +e.target.value)} />],
+              ["MIN YRS OWNED", <input  key="minYrs"    className="filter-input" type="number" value={filters.minYearsOwned} onChange={e => setFilter("minYearsOwned", +e.target.value)} />],
             ].map(([label, el]) => (
               <div key={label} style={{ marginBottom: 12 }}>
                 <div style={{ fontSize: 9, color: "#4a5568", letterSpacing: "0.1em", marginBottom: 4 }}>{label}</div>
@@ -443,6 +458,24 @@ export default function LeadDashboard() {
               ))}
               <div style={{ fontSize: 8, color: "#374151", marginTop: 6, lineHeight: 1.4 }}>Score = equity% + years held + owner type bonus</div>
             </div>
+
+            <div style={{ marginTop: 12, padding: 12, background: "#0d1525", borderRadius: 4, border: "1px solid #1e2d45" }}>
+              <div style={{ fontSize: 9, color: "#d4a843", letterSpacing: "0.1em", marginBottom: 6 }}>MA USE CODES</div>
+              {[
+                ["1040","2-family"],
+                ["1050","3-family"],
+                ["1110","4–8 units"],
+                ["1120","4–8 units"],
+                ["3200","Apt 10+"],
+                ["3210","Apt 10+"],
+              ].map(([code, label]) => (
+                <div key={code} style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                  <span style={{ fontSize: 9, color: "#60a5fa", fontWeight: 600 }}>{code}</span>
+                  <span style={{ fontSize: 9, color: "#4a5568" }}>{label}</span>
+                </div>
+              ))}
+              <div style={{ fontSize: 8, color: "#374151", marginTop: 6, lineHeight: 1.4 }}>Type codes above into USE CODES filter (comma-separated)</div>
+            </div>
           </div>
 
           {/* Table */}
@@ -460,6 +493,7 @@ export default function LeadDashboard() {
                     ["assessed",  "ASSESSED"],
                     ["ownerName", "OWNER"],
                     ["ownerType", "TYPE"],
+                    ["useCode",   "USE CODE"],
                     ["status",    "STATUS"],
                   ].map(([f, label]) => (
                     <th key={f} onClick={() => handleSort(f)}
@@ -500,6 +534,7 @@ export default function LeadDashboard() {
                         {lead.ownerType}
                       </span>
                     </td>
+                    <td style={{ padding: "10px 12px", color: "#4a5568", fontSize: 10 }}>{lead.useCode || "—"}</td>
                     <td style={{ padding: "10px 12px" }}>
                       <select value={lead.status}
                         onClick={e => e.stopPropagation()}
