@@ -129,6 +129,9 @@ function importCSV(text, currentYear) {
   const delim   = lines[0].includes("\t") ? "\t" : ",";
   const headers = parseCSVRow(lines[0], delim);
   const colMap  = detectColumns(headers);
+  console.log("[CSV import] delimiter:", JSON.stringify(delim));
+  console.log("[CSV import] headers:", headers);
+  console.log("[CSV import] colMap:", colMap);
   const errors  = [];
   const leads   = [];
 
@@ -152,7 +155,9 @@ function importCSV(text, currentYear) {
     const units     = parseInt(get("units", "0"), 10) || 0;
     const lastSale  = parseSaleYear(get("lastSale"));
     const lastPrice = parseInt(get("lastPrice", "0").replace(/[^0-9]/g, ""), 10) || 0;
-    const assessed  = parseInt(get("assessed",  "0").replace(/[^0-9]/g, ""), 10) || 0;
+    const assessedRaw = get("assessed", "");
+    if (i === 1) console.log("[CSV import] row1 assessed raw:", JSON.stringify(assessedRaw), "| row:", row.slice(0, 8));
+    const assessed  = parseInt(assessedRaw.replace(/[^0-9]/g, ""), 10) || 0;
     const ownerName = get("ownerName");
     const ownerType = get("ownerType") || inferOwnerType(ownerName);
     const yearBuilt = parseInt(get("yearBuilt", "1970"), 10) || 1970;
