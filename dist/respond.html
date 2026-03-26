@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Thanks for Reaching Out</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+      background: #f8fafc;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      color: #1a202c;
+    }
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+      max-width: 520px;
+      width: 100%;
+      padding: 48px 40px;
+    }
+    .logo {
+      width: 40px; height: 40px;
+      background: #1a3a5c;
+      border-radius: 8px;
+      margin-bottom: 28px;
+    }
+    h1 { font-size: 24px; font-weight: 700; color: #1a3a5c; margin-bottom: 10px; }
+    .subtitle { font-size: 15px; color: #64748b; margin-bottom: 32px; line-height: 1.5; }
+    .property-tag {
+      background: #f0f7ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-size: 14px;
+      color: #1e40af;
+      margin-bottom: 28px;
+      display: none;
+    }
+    label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px; }
+    input, select, textarea {
+      width: 100%;
+      padding: 11px 14px;
+      border: 1px solid #d1d5db;
+      border-radius: 7px;
+      font-size: 15px;
+      color: #111;
+      background: #fff;
+      margin-bottom: 20px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    input:focus, select:focus, textarea:focus { border-color: #1a3a5c; }
+    textarea { resize: vertical; min-height: 90px; }
+    button[type="submit"] {
+      width: 100%;
+      padding: 14px;
+      background: #1a3a5c;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      border: none;
+      border-radius: 7px;
+      cursor: pointer;
+      transition: background 0.15s;
+      margin-top: 4px;
+    }
+    button[type="submit"]:hover { background: #15304e; }
+    .thank-you { display: none; text-align: center; padding: 20px 0; }
+    .thank-you .check {
+      width: 60px; height: 60px;
+      background: #10b981;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px;
+      margin: 0 auto 20px;
+    }
+    .thank-you h2 { font-size: 22px; color: #1a3a5c; margin-bottom: 10px; }
+    .thank-you p  { font-size: 15px; color: #64748b; line-height: 1.6; }
+    .disclaimer { font-size: 12px; color: #9ca3af; margin-top: 20px; text-align: center; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo"></div>
+
+    <!-- Form (shown by default) -->
+    <div id="form-area">
+      <h1>Thanks for your interest</h1>
+      <p class="subtitle">Fill out the short form below and I'll be in touch soon to learn more about your situation — no pressure, no obligation.</p>
+
+      <div class="property-tag" id="property-tag"></div>
+
+      <!-- Formspree: replace YOUR_FORM_ID with the ID from formspree.io/forms -->
+      <form action="https://formspree.io/f/xgopvovy" method="POST" id="response-form">
+        <input type="hidden" name="lead-id"           id="field-lid">
+        <input type="hidden" name="property-address"  id="field-addr">
+        <input type="hidden" name="owner-name-hidden" id="field-owner">
+
+        <label for="name">Your name</label>
+        <input  type="text"  name="name" id="name" required placeholder="Full name">
+
+        <label for="phone">Best phone number</label>
+        <input  type="tel"   name="phone" id="phone" required placeholder="(555) 555-5555">
+
+        <label for="interest">Are you open to selling?</label>
+        <select name="interest" id="interest" required>
+          <option value="">— Select one —</option>
+          <option value="yes-interested">Yes, I'd consider it</option>
+          <option value="maybe">Maybe — depends on the offer</option>
+          <option value="timeline">Not right now, but possibly in the future</option>
+        </select>
+
+        <label for="message">Anything else you'd like to share? (optional)</label>
+        <textarea name="message" id="message" placeholder="Best time to call, asking price in mind, etc."></textarea>
+
+        <button type="submit">Send my response</button>
+      </form>
+
+      <p class="disclaimer">Your information is kept strictly private and will only be used to follow up with you directly.</p>
+    </div>
+
+    <!-- Thank-you state (shown after submit) -->
+    <div class="thank-you" id="thank-you">
+      <div class="check">✓</div>
+      <h2>Got it — thank you!</h2>
+      <p>I'll reach out to you personally within 1–2 business days. Looking forward to the conversation.</p>
+    </div>
+  </div>
+
+  <script>
+    // Populate hidden fields and property tag from URL params
+    const p = new URLSearchParams(location.search);
+    const lid  = p.get("lid")  || "";
+    const name = p.get("name") || "";
+    const addr = p.get("addr") || "";
+
+    document.getElementById("field-lid").value   = lid;
+    document.getElementById("field-addr").value  = addr;
+    document.getElementById("field-owner").value = name;
+
+    if (addr) {
+      const tag = document.getElementById("property-tag");
+      tag.textContent = "Re: " + addr;
+      tag.style.display = "block";
+    }
+
+    // Handle form submit — show thank-you without full page reload
+    const form = document.getElementById("response-form");
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const btn = form.querySelector("button[type='submit']");
+      btn.disabled = true;
+      btn.textContent = "Sending…";
+
+      try {
+        await fetch(form.action, {
+          method:  "POST",
+          headers: { "Accept": "application/json" },
+          body:    new FormData(form),
+        });
+      } catch (_) {
+        // Submission attempted; show thank-you regardless to avoid confusion
+      }
+
+      document.getElementById("form-area").style.display  = "none";
+      document.getElementById("thank-you").style.display  = "block";
+    });
+  </script>
+</body>
+</html>
