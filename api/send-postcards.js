@@ -90,6 +90,71 @@ function buildFront(lead) {
 </html>`;
 }
 
+function buildFollowUpFront(lead) {
+  const firstName   = getFirstName(lead.ownerName, lead.ownerType);
+  const greeting    = firstName ? `Hi ${firstName},` : "Dear Property Owner,";
+  const responseUrl = `${SITE_URL}/respond.html?lid=${lead.id}&name=${encodeURIComponent(lead.ownerName)}&addr=${encodeURIComponent(lead.address + ", " + lead.city)}`;
+  const qrUrl       = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&color=1a3a5c&data=${encodeURIComponent(responseUrl)}`;
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1800px; height: 2700px;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    background: #ffffff;
+    padding: 220px 210px 180px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .eyebrow {
+    display: inline-block;
+    background: #78350f;
+    color: #ffffff;
+    font-size: 52px;
+    font-weight: 700;
+    letter-spacing: 5px;
+    text-transform: uppercase;
+    padding: 20px 44px;
+    margin-bottom: 90px;
+  }
+  h1 { font-size: 130px; font-weight: 700; color: #1a3a5c; line-height: 1.1; margin-bottom: 70px; }
+  p  { font-size: 70px; color: #333333; line-height: 1.55; margin-bottom: 44px; }
+  strong { color: #1a3a5c; }
+  .divider { border: none; border-top: 5px solid #1a3a5c; margin: 60px 0; }
+  .cta { display: flex; align-items: center; gap: 80px; }
+  .cta-text { font-size: 62px; color: #1a3a5c; font-weight: 600; line-height: 1.4; }
+  .cta-url  { font-size: 50px; color: #888; margin-top: 14px; word-break: break-all; }
+  .sig { font-size: 70px; font-style: italic; color: #1a3a5c; }
+</style>
+</head>
+<body>
+  <div>
+    <div class="eyebrow">Following Up</div>
+    <h1>${greeting}</h1>
+    <p>I reached out recently about your property at <strong>${lead.address}</strong> — I wanted to follow up in case my letter got lost in the shuffle.</p>
+    <p>I'm still very interested in a private conversation about <strong>${lead.city}</strong> multifamily. If the timing is ever right, I'd love to hear from you.</p>
+    <p><strong>No agents. No fees. No pressure.</strong></p>
+  </div>
+  <div>
+    <hr class="divider">
+    <div class="cta">
+      <img src="${qrUrl}" width="260" height="260" alt="Scan to respond">
+      <div>
+        <div class="cta-text">Scan to let me know you're open to a conversation</div>
+        <div class="cta-url">${SITE_URL}/respond.html</div>
+      </div>
+    </div>
+    <div style="margin-top:80px" class="sig">— ${FROM_NAME}</div>
+  </div>
+</body>
+</html>`;
+}
+
 function buildBack() {
   return `<!DOCTYPE html>
 <html>
@@ -194,7 +259,7 @@ export default async function handler(req, res) {
           to,
           from,
           size:  "6x9",
-          front: buildFront(lead),
+          front: (lead.mailHistory?.length ?? 0) > 0 ? buildFollowUpFront(lead) : buildFront(lead),
           back:  buildBack(),
         }),
       });
