@@ -225,6 +225,7 @@ export default function LeadDashboard() {
   const [importResult, setImportResult] = useState(null); // { added, skipped, errors }
   const [importMode, setImportMode] = useState("append"); // "append" | "replace"
   const [campaign, setCampaign] = useState({ open: false, sending: false, results: null });
+  const [selectedForMail, setSelectedForMail] = useState(new Set());
 
   const cities     = useMemo(() => ["All", ...Array.from(new Set(leads.map(l => l.city))).sort()], [leads]);
   const ownerTypes = ["All", "Individual", "LLC", "Trust", "Estate"];
@@ -263,7 +264,26 @@ export default function LeadDashboard() {
     offers:    leads.filter(l => l.status === "Offer Made").length,
   }), [leads]);
 
-  const hotUnmailed = leads.filter(l => l.score >= 90 && !l.mailedAt);
+  const hotUnmailed  = leads.filter(l => l.score >= 90 && !l.mailedAt);
+  const mailTargets  = selectedForMail.size > 0
+    ? hotUnmailed.filter(l => selectedForMail.has(l.id))
+    : hotUnmailed;
+
+  const toggleMailSelect = (id) => {
+    setSelectedForMail(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAllHot = () => {
+    if (hotUnmailed.every(l => selectedForMail.has(l.id))) {
+      setSelectedForMail(new Set());
+    } else {
+      setSelectedForMail(new Set(hotUnmailed.map(l => l.id)));
+    }
+  };
 
   const sendPostcards = async () => {
     setCampaign(c => ({ ...c, sending: true, results: null }));
@@ -271,7 +291,7 @@ export default function LeadDashboard() {
       const res  = await fetch("/api/send-postcards", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ leads: hotUnmailed }),
+        body:    JSON.stringify({ leads: mailTargets }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Server error");
@@ -282,6 +302,7 @@ export default function LeadDashboard() {
           ? { ...l, mailedAt: new Date().toISOString(), status: l.status === "Not Contacted" ? "Letter Sent" : l.status }
           : l
       ));
+      setSelectedForMail(new Set());
       setCampaign(c => ({ ...c, sending: false, results: data.results }));
     } catch (err) {
       setCampaign(c => ({ ...c, sending: false, results: [{ status: "failed", reason: err.message }] }));
@@ -477,10 +498,20 @@ export default function LeadDashboard() {
             </div>
 
             {hotUnmailed.length > 0 && (
-              <button className="btn" onClick={() => setCampaign({ open: true, sending: false, results: null })}
-                style={{ width: "100%", background: "#10b981", color: "#fff", padding: "8px 0", borderRadius: 4, fontWeight: 700, fontSize: 10, letterSpacing: "0.12em", marginBottom: 16 }}>
-                SEND POSTCARDS ({hotUnmailed.length})
-              </button>
+              <div style={{ marginBottom: 16 }}>
+                <button className="btn" onClick={() => setCampaign({ open: true, sending: false, results: null })}
+                  style={{ width: "100%", background: "#10b981", color: "#fff", padding: "8px 0", borderRadius: 4, fontWeight: 700, fontSize: 10, letterSpacing: "0.12em" }}>
+                  {selectedForMail.size > 0
+                    ? `SEND SELECTED (${selectedForMail.size})`
+                    : `SEND POSTCARDS (${hotUnmailed.length})`}
+                </button>
+                {selectedForMail.size > 0 && (
+                  <button className="btn" onClick={() => setSelectedForMail(new Set())}
+                    style={{ width: "100%", background: "none", color: "#4a5568", fontSize: 9, padding: "4px 0", marginTop: 3 }}>
+                    clear selection
+                  </button>
+                )}
+              </div>
             )}
 
             <div style={{ fontSize: 9, color: "#4a5568", letterSpacing: "0.15em", marginBottom: 12 }}>FILTER BY</div>
@@ -541,6 +572,14 @@ export default function LeadDashboard() {
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
               <thead>
                 <tr style={{ background: "#060b14", position: "sticky", top: 0, zIndex: 10 }}>
+                  <th style={{ padding: "10px 8px 10px 14px", borderBottom: "1px solid #1e2d45" }}>
+                    <input type="checkbox"
+                      title="Select all HOT unmailed"
+                      checked={hotUnmailed.length > 0 && hotUnmailed.every(l => selectedForMail.has(l.id))}
+                      ref={el => { if (el) el.indeterminate = selectedForMail.size > 0 && !hotUnmailed.every(l => selectedForMail.has(l.id)); }}
+                      onChange={toggleSelectAllHot}
+                      style={{ accentColor: "#10b981", cursor: "pointer" }} />
+                  </th>
                   {[
                     ["score",     "SCORE"],
                     ["address",   "ADDRESS"],
@@ -565,6 +604,14 @@ export default function LeadDashboard() {
                 {filtered.map((lead, i) => (
                   <tr key={lead.id} className="row-hover" onClick={() => setSelected(lead)}
                     style={{ background: i % 2 === 0 ? "#0a0e1a" : "#08111e", borderBottom: "1px solid #0f1829" }}>
+                    <td style={{ padding: "10px 8px 10px 14px" }} onClick={e => e.stopPropagation()}>
+                      {lead.score >= 90 && !lead.mailedAt
+                        ? <input type="checkbox"
+                            checked={selectedForMail.has(lead.id)}
+                            onChange={() => toggleMailSelect(lead.id)}
+                            style={{ accentColor: "#10b981", cursor: "pointer" }} />
+                        : <span style={{ display: "inline-block", width: 13 }} />}
+                    </td>
                     <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         <span style={{ fontSize: 10, fontWeight: 700, color: scoreColor(lead.score) }}>{lead.score}</span>
@@ -905,9 +952,11 @@ Total cost: $0/month to start`,
             ) : (
               <div>
                 <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 14 }}>
-                  {hotUnmailed.length} postcard{hotUnmailed.length !== 1 ? "s" : ""} · est. ${(hotUnmailed.length * 0.85).toFixed(2)} via Lob
+                  {mailTargets.length} postcard{mailTargets.length !== 1 ? "s" : ""}
+                  {selectedForMail.size > 0 ? " (selected)" : " (all HOT unmailed)"}
+                  {" "}· est. ${(mailTargets.length * 0.85).toFixed(2)} via Lob
                 </div>
-                {hotUnmailed.map(l => (
+                {mailTargets.map(l => (
                   <div key={l.id} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #0f1829", fontSize: 11 }}>
                     <span style={{ color: "#94a3b8" }}>{l.address}, {l.city}</span>
                     <span style={{ color: "#4a5568" }}>{l.ownerName}</span>
@@ -920,7 +969,7 @@ Total cost: $0/month to start`,
                   </button>
                   <button className="btn" onClick={sendPostcards} disabled={campaign.sending}
                     style={{ flex: 2, background: campaign.sending ? "#064e3b" : "#10b981", color: "#fff", padding: "8px 0", borderRadius: 4, fontWeight: 700, fontSize: 11 }}>
-                    {campaign.sending ? "Sending…" : `Confirm — Send ${hotUnmailed.length} Postcard${hotUnmailed.length !== 1 ? "s" : ""}`}
+                    {campaign.sending ? "Sending…" : `Confirm — Send ${mailTargets.length} Postcard${mailTargets.length !== 1 ? "s" : ""}`}
                   </button>
                 </div>
               </div>
