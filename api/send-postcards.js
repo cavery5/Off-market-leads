@@ -16,6 +16,7 @@ const FROM_ADDRESS_LINE1 = process.env.FROM_ADDRESS_LINE1;
 const FROM_CITY          = process.env.FROM_CITY;
 const FROM_STATE         = process.env.FROM_STATE || "MA";
 const FROM_ZIP           = process.env.FROM_ZIP;
+const FROM_PHONE         = process.env.FROM_PHONE || "";
 const SITE_URL           = (process.env.VITE_SITE_URL || "").replace(/\/$/, "");
 
 function getFirstName(ownerName, ownerType) {
@@ -69,18 +70,17 @@ function buildFront(lead) {
 </head>
 <body>
   <div>
-    <div class="eyebrow">Private &amp; Confidential</div>
     <h1>${greeting}</h1>
-    <p>I'm a local investor actively looking to buy multifamily properties in <strong>${lead.city}</strong>.</p>
-    <p>I came across your property at <strong>${lead.address}</strong> and would love a quick, private conversation about whether you'd consider selling.</p>
-    <p><strong>No agents. No listing fees. No pressure.</strong></p>
+    <p>I'm a local investor building a small portfolio of apartment buildings in <strong>${lead.city}</strong> to hold long-term for my family.</p>
+    <p>If you've ever thought about selling <strong>${lead.address}</strong> — on your own timeline, no agents, no listing hassle — I'd love a private conversation.</p>
   </div>
   <div>
     <hr class="divider">
     <div class="cta">
       <img src="${qrUrl}" width="260" height="260" alt="Scan to respond">
       <div>
-        <div class="cta-text">Scan to let me know you're open to a conversation</div>
+        <div class="cta-text">Scan the QR code or call me directly</div>
+        ${FROM_PHONE ? `<div class="cta-url">${FROM_PHONE}</div>` : ""}
         <div class="cta-url">${SITE_URL}/respond.html</div>
       </div>
     </div>
@@ -134,18 +134,18 @@ function buildFollowUpFront(lead) {
 </head>
 <body>
   <div>
-    <div class="eyebrow">Following Up</div>
     <h1>${greeting}</h1>
-    <p>I reached out recently about your property at <strong>${lead.address}</strong> — I wanted to follow up in case my letter got lost in the shuffle.</p>
-    <p>I'm still very interested in a private conversation about <strong>${lead.city}</strong> multifamily. If the timing is ever right, I'd love to hear from you.</p>
-    <p><strong>No agents. No fees. No pressure.</strong></p>
+    <p>I reached out a few weeks ago about <strong>${lead.address}</strong> and wanted to follow up one last time.</p>
+    <p>I'm a local investor — I buy and hold, not flip. My goal is to build a small portfolio of well-kept buildings in <strong>${lead.city}</strong> that I can pass on to my family. I'm not a developer and I'm not looking to displace anyone.</p>
+    <p>If selling has ever crossed your mind, I'd welcome a private conversation on your timeline. No agents, no pressure, no obligation.</p>
   </div>
   <div>
     <hr class="divider">
     <div class="cta">
       <img src="${qrUrl}" width="260" height="260" alt="Scan to respond">
       <div>
-        <div class="cta-text">Scan to let me know you're open to a conversation</div>
+        <div class="cta-text">Call or scan the QR code whenever you're ready</div>
+        ${FROM_PHONE ? `<div class="cta-url">${FROM_PHONE}</div>` : ""}
         <div class="cta-url">${SITE_URL}/respond.html</div>
       </div>
     </div>
