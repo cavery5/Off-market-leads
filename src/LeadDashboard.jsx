@@ -2,20 +2,6 @@ import { useState, useMemo } from "react";
 
 const CURRENT_YEAR = 2026;
 
-const SAMPLE_LEADS = [
-  { id: 1,  address: "47 Pleasant St",   city: "Worcester",    units: 14, lastSale: 2003, lastPrice: 485000,  assessed: 1250000, equity: 87, ownerName: "Kowalski Family Trust",      ownerAddress: "22 Birch Ln, Shrewsbury MA",          ownerType: "Trust",      phone: "",             status: "Not Contacted", notes: "",                              score: 95, useCode: "320", lotSF: 8400,  yearBuilt: 1962 },
-  { id: 2,  address: "213 Main St",       city: "Springfield",  units: 18, lastSale: 1998, lastPrice: 310000,  assessed: 890000,  equity: 92, ownerName: "Patel, Rajan",               ownerAddress: "88 Country Club Dr, Longmeadow MA",   ownerType: "Individual", phone: "",             status: "Not Contacted", notes: "",                              score: 97, useCode: "320", lotSF: 11200, yearBuilt: 1958 },
-  { id: 3,  address: "88 Merrimack St",   city: "Lowell",       units: 12, lastSale: 2007, lastPrice: 620000,  assessed: 1380000, equity: 71, ownerName: "Merrimack Props LLC",        ownerAddress: "PO Box 441, Lowell MA",               ownerType: "LLC",        phone: "",             status: "Letter Sent",   notes: "Sent 2/28, no reply yet",       score: 76, useCode: "320", lotSF: 7800,  yearBuilt: 1971 },
-  { id: 4,  address: "334 Warren Ave",    city: "Brockton",     units: 16, lastSale: 2001, lastPrice: 395000,  assessed: 1050000, equity: 89, ownerName: "Ferreira, Antonio J",        ownerAddress: "12 Sunview Rd, Easton MA",            ownerType: "Individual", phone: "508-555-0142", status: "Called",        notes: "Spoke briefly, said maybe next year", score: 96, useCode: "320", lotSF: 9600,  yearBuilt: 1965 },
-  { id: 5,  address: "19 Western Ave",    city: "Lynn",         units: 11, lastSale: 2005, lastPrice: 540000,  assessed: 1190000, equity: 83, ownerName: "Nguyen, Thanh V",           ownerAddress: "19 Western Ave Unit 1, Lynn MA",     ownerType: "Individual", phone: "",             status: "Not Contacted", notes: "",                              score: 83, useCode: "320", lotSF: 6200,  yearBuilt: 1968 },
-  { id: 6,  address: "601 State St",      city: "Springfield",  units: 22, lastSale: 1995, lastPrice: 275000,  assessed: 740000,  equity: 95, ownerName: "Goldstein Estate",           ownerAddress: "c/o Sullivan & Co, Springfield MA",  ownerType: "Estate",     phone: "",             status: "Not Contacted", notes: "",                              score: 98, useCode: "320", lotSF: 14500, yearBuilt: 1955 },
-  { id: 7,  address: "112 Chandler St",   city: "Worcester",    units: 15, lastSale: 2010, lastPrice: 780000,  assessed: 1680000, equity: 61, ownerName: "Clark Properties LLC",      ownerAddress: "55 Park Ave Ste 3, Worcester MA",    ownerType: "LLC",        phone: "508-555-0871", status: "Meeting Set",   notes: "Meeting 3/22 at property",      score: 66, useCode: "320", lotSF: 8900,  yearBuilt: 1967 },
-  { id: 8,  address: "78 Appleton St",    city: "Lowell",       units: 13, lastSale: 2004, lastPrice: 495000,  assessed: 1120000, equity: 78, ownerName: "Tran, Minh L",              ownerAddress: "240 Rogers St, Lowell MA",            ownerType: "Individual", phone: "",             status: "Letter Sent",   notes: "2nd letter sent 3/5",           score: 91, useCode: "320", lotSF: 7100,  yearBuilt: 1970 },
-  { id: 9,  address: "456 Purchase St",   city: "New Bedford",  units: 20, lastSale: 1999, lastPrice: 220000,  assessed: 670000,  equity: 94, ownerName: "Medeiros, Manuel A",        ownerAddress: "89 Orchard St, Dartmouth MA",        ownerType: "Individual", phone: "508-555-0334", status: "Responded",     notes: "Interested but wants $1.6M — too high", score: 98, useCode: "320", lotSF: 12000, yearBuilt: 1952 },
-  { id: 10, address: "23 Salem St",       city: "Lynn",         units: 17, lastSale: 2002, lastPrice: 480000,  assessed: 1340000, equity: 88, ownerName: "North Shore Realty Trust",  ownerAddress: "PO Box 881, Lynn MA",                ownerType: "Trust",      phone: "",             status: "Not Contacted", notes: "",                              score: 95, useCode: "320", lotSF: 10200, yearBuilt: 1963 },
-  { id: 11, address: "88 Quincy Ave",     city: "Brockton",     units: 10, lastSale: 2006, lastPrice: 550000,  assessed: 990000,  equity: 67, ownerName: "Silva, Eduardo M",          ownerAddress: "44 Oak Hill Dr, Canton MA",          ownerType: "Individual", phone: "",             status: "Not Contacted", notes: "",                              score: 87, useCode: "320", lotSF: 5800,  yearBuilt: 1972 },
-  { id: 12, address: "334 Dwight St",     city: "Springfield",  units: 24, lastSale: 1997, lastPrice: 195000,  assessed: 580000,  equity: 97, ownerName: "Pioneer Valley LLC",        ownerAddress: "PO Box 2210, Springfield MA",        ownerType: "LLC",        phone: "",             status: "Not Contacted", notes: "",                              score: 89, useCode: "320", lotSF: 16800, yearBuilt: 1948 },
-];
 
 const STATUS_OPTIONS = ["Not Contacted", "Letter Sent", "Called", "Responded", "Meeting Set", "Offer Made", "Dead"];
 
@@ -580,7 +566,9 @@ export default function LeadDashboard() {
               </tbody>
             </table>
             {filtered.length === 0 && (
-              <div style={{ textAlign: "center", padding: 60, color: "#4a5568", fontSize: 12 }}>No leads match current filters</div>
+              <div style={{ textAlign: "center", padding: 60, color: "#4a5568", fontSize: 12 }}>
+                {leads.length === 0 ? "No leads loaded — import a CSV to get started" : "No leads match current filters"}
+              </div>
             )}
           </div>
         </div>
