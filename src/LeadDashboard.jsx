@@ -268,7 +268,7 @@ export default function LeadDashboard() {
   const sendPostcards = async () => {
     setCampaign(c => ({ ...c, sending: true, results: null }));
     try {
-      const res  = await fetch("/.netlify/functions/send-postcards", {
+      const res  = await fetch("/api/send-postcards", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ leads: hotUnmailed }),

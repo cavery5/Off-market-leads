@@ -1,14 +1,14 @@
-// Netlify Function: send-postcards
+// Vercel Serverless Function: /api/send-postcards
 // Calls Lob API to mail a 6x9 postcard to each provided lead.
 //
-// Required env vars (set in Netlify dashboard → Site Settings → Environment):
+// Set these in Vercel dashboard → Project → Settings → Environment Variables:
 //   LOB_API_KEY          — from lob.com (test_... for testing, live_... for real mail)
 //   FROM_NAME            — your full name (e.g. "Chris Avery")
 //   FROM_ADDRESS_LINE1   — your street address
 //   FROM_CITY            — your city
 //   FROM_STATE           — your state (default: MA)
 //   FROM_ZIP             — your zip code
-//   SITE_URL             — your Netlify site URL (e.g. https://yoursite.netlify.app)
+//   VITE_SITE_URL        — your Vercel site URL (e.g. https://yoursite.vercel.app)
 
 const LOB_API_KEY        = process.env.LOB_API_KEY;
 const FROM_NAME          = process.env.FROM_NAME;
@@ -16,7 +16,7 @@ const FROM_ADDRESS_LINE1 = process.env.FROM_ADDRESS_LINE1;
 const FROM_CITY          = process.env.FROM_CITY;
 const FROM_STATE         = process.env.FROM_STATE || "MA";
 const FROM_ZIP           = process.env.FROM_ZIP;
-const SITE_URL           = (process.env.SITE_URL || "").replace(/\/$/, "");
+const SITE_URL           = (process.env.VITE_SITE_URL || "").replace(/\/$/, "");
 
 function getFirstName(ownerName, ownerType) {
   if (["LLC", "Trust", "Estate"].includes(ownerType)) return null;
@@ -134,30 +134,23 @@ function buildBack() {
 </html>`;
 }
 
-exports.handler = async (event) => {
-  const headers = {
-    "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": "*",
-  };
+export default async function handler(req, res) {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Content-Type", "application/json");
 
-  if (event.httpMethod === "OPTIONS") return { statusCode: 204, headers, body: "" };
-  if (event.httpMethod !== "POST")    return { statusCode: 405, headers, body: JSON.stringify({ error: "Method not allowed" }) };
+  if (req.method === "OPTIONS") return res.status(204).end();
+  if (req.method !== "POST")    return res.status(405).json({ error: "Method not allowed" });
 
-  if (!LOB_API_KEY)        return { statusCode: 500, headers, body: JSON.stringify({ error: "LOB_API_KEY is not set" }) };
-  if (!FROM_NAME)          return { statusCode: 500, headers, body: JSON.stringify({ error: "FROM_NAME is not set" }) };
-  if (!FROM_ADDRESS_LINE1) return { statusCode: 500, headers, body: JSON.stringify({ error: "FROM_ADDRESS_LINE1 is not set" }) };
-  if (!FROM_CITY)          return { statusCode: 500, headers, body: JSON.stringify({ error: "FROM_CITY is not set" }) };
-  if (!FROM_ZIP)           return { statusCode: 500, headers, body: JSON.stringify({ error: "FROM_ZIP is not set" }) };
+  if (!LOB_API_KEY)        return res.status(500).json({ error: "LOB_API_KEY is not set" });
+  if (!FROM_NAME)          return res.status(500).json({ error: "FROM_NAME is not set" });
+  if (!FROM_ADDRESS_LINE1) return res.status(500).json({ error: "FROM_ADDRESS_LINE1 is not set" });
+  if (!FROM_CITY)          return res.status(500).json({ error: "FROM_CITY is not set" });
+  if (!FROM_ZIP)           return res.status(500).json({ error: "FROM_ZIP is not set" });
 
-  let leads;
-  try {
-    ({ leads } = JSON.parse(event.body));
-  } catch {
-    return { statusCode: 400, headers, body: JSON.stringify({ error: "Invalid JSON body" }) };
-  }
-
+  const { leads } = req.body;
   if (!Array.isArray(leads) || leads.length === 0) {
-    return { statusCode: 400, headers, body: JSON.stringify({ error: "No leads provided" }) };
+    return res.status(400).json({ error: "No leads provided" });
   }
 
   const from = {
@@ -173,11 +166,10 @@ exports.handler = async (event) => {
   const results    = [];
 
   for (const lead of leads) {
-    // Build mailing address — prefer individual fields, fall back to parsing ownerAddress
     const addrLine1 = lead.ownerStreet || lead.address;
-    const addrCity  = lead.ownerCity  || lead.city;
-    const addrState = lead.ownerState || "MA";
-    const addrZip   = lead.ownerZip   || "";
+    const addrCity  = lead.ownerCity   || lead.city;
+    const addrState = lead.ownerState  || "MA";
+    const addrZip   = lead.ownerZip    || "";
 
     if (!addrLine1 || !addrCity || !addrZip) {
       results.push({ id: lead.id, status: "skipped", reason: "Missing mailing address fields (need street, city, zip)" });
@@ -194,7 +186,7 @@ exports.handler = async (event) => {
     };
 
     try {
-      const res  = await fetch("https://api.lob.com/v1/postcards", {
+      const lobRes = await fetch("https://api.lob.com/v1/postcards", {
         method:  "POST",
         headers: { "Authorization": authHeader, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -207,8 +199,8 @@ exports.handler = async (event) => {
         }),
       });
 
-      const data = await res.json();
-      if (res.ok) {
+      const data = await lobRes.json();
+      if (lobRes.ok) {
         results.push({ id: lead.id, lobId: data.id, expectedDelivery: data.expected_delivery_date, status: "sent" });
       } else {
         results.push({ id: lead.id, status: "failed", reason: data.error?.message || JSON.stringify(data) });
@@ -218,5 +210,5 @@ exports.handler = async (event) => {
     }
   }
 
-  return { statusCode: 200, headers, body: JSON.stringify({ results }) };
-};
+  return res.status(200).json({ results });
+}
