@@ -2,20 +2,6 @@ import { useState, useMemo } from "react";
 
 const CURRENT_YEAR = 2026;
 
-const SAMPLE_LEADS = [
-  { id: 1,  address: "47 Pleasant St",   city: "Worcester",    units: 14, lastSale: 2003, lastPrice: 485000,  assessed: 1250000, equity: 87, ownerName: "Kowalski Family Trust",      ownerAddress: "22 Birch Ln, Shrewsbury MA",          ownerType: "Trust",      phone: "",             status: "Not Contacted", notes: "",                              score: 95, useCode: "320", lotSF: 8400,  yearBuilt: 1962 },
-  { id: 2,  address: "213 Main St",       city: "Springfield",  units: 18, lastSale: 1998, lastPrice: 310000,  assessed: 890000,  equity: 92, ownerName: "Patel, Rajan",               ownerAddress: "88 Country Club Dr, Longmeadow MA",   ownerType: "Individual", phone: "",             status: "Not Contacted", notes: "",                              score: 98, useCode: "320", lotSF: 11200, yearBuilt: 1958 },
-  { id: 3,  address: "88 Merrimack St",   city: "Lowell",       units: 12, lastSale: 2007, lastPrice: 620000,  assessed: 1380000, equity: 71, ownerName: "Merrimack Props LLC",        ownerAddress: "PO Box 441, Lowell MA",               ownerType: "LLC",        phone: "",             status: "Letter Sent",   notes: "Sent 2/28, no reply yet",       score: 82, useCode: "320", lotSF: 7800,  yearBuilt: 1971 },
-  { id: 4,  address: "334 Warren Ave",    city: "Brockton",     units: 16, lastSale: 2001, lastPrice: 395000,  assessed: 1050000, equity: 89, ownerName: "Ferreira, Antonio J",        ownerAddress: "12 Sunview Rd, Easton MA",            ownerType: "Individual", phone: "508-555-0142", status: "Called",        notes: "Spoke briefly, said maybe next year", score: 77, useCode: "320", lotSF: 9600,  yearBuilt: 1965 },
-  { id: 5,  address: "19 Western Ave",    city: "Lynn",         units: 11, lastSale: 2005, lastPrice: 540000,  assessed: 1190000, equity: 83, ownerName: "Nguyen, Thanh V",           ownerAddress: "19 Western Ave Unit 1, Lynn MA",     ownerType: "Individual", phone: "",             status: "Not Contacted", notes: "",                              score: 79, useCode: "320", lotSF: 6200,  yearBuilt: 1968 },
-  { id: 6,  address: "601 State St",      city: "Springfield",  units: 22, lastSale: 1995, lastPrice: 275000,  assessed: 740000,  equity: 95, ownerName: "Goldstein Estate",           ownerAddress: "c/o Sullivan & Co, Springfield MA",  ownerType: "Estate",     phone: "",             status: "Not Contacted", notes: "",                              score: 99, useCode: "320", lotSF: 14500, yearBuilt: 1955 },
-  { id: 7,  address: "112 Chandler St",   city: "Worcester",    units: 15, lastSale: 2010, lastPrice: 780000,  assessed: 1680000, equity: 61, ownerName: "Clark Properties LLC",      ownerAddress: "55 Park Ave Ste 3, Worcester MA",    ownerType: "LLC",        phone: "508-555-0871", status: "Meeting Set",   notes: "Meeting 3/22 at property",      score: 88, useCode: "320", lotSF: 8900,  yearBuilt: 1967 },
-  { id: 8,  address: "78 Appleton St",    city: "Lowell",       units: 13, lastSale: 2004, lastPrice: 495000,  assessed: 1120000, equity: 78, ownerName: "Tran, Minh L",              ownerAddress: "240 Rogers St, Lowell MA",            ownerType: "Individual", phone: "",             status: "Letter Sent",   notes: "2nd letter sent 3/5",           score: 85, useCode: "320", lotSF: 7100,  yearBuilt: 1970 },
-  { id: 9,  address: "456 Purchase St",   city: "New Bedford",  units: 20, lastSale: 1999, lastPrice: 220000,  assessed: 670000,  equity: 94, ownerName: "Medeiros, Manuel A",        ownerAddress: "89 Orchard St, Dartmouth MA",        ownerType: "Individual", phone: "508-555-0334", status: "Responded",     notes: "Interested but wants $1.6M — too high", score: 91, useCode: "320", lotSF: 12000, yearBuilt: 1952 },
-  { id: 10, address: "23 Salem St",       city: "Lynn",         units: 17, lastSale: 2002, lastPrice: 480000,  assessed: 1340000, equity: 88, ownerName: "North Shore Realty Trust",  ownerAddress: "PO Box 881, Lynn MA",                ownerType: "Trust",      phone: "",             status: "Not Contacted", notes: "",                              score: 93, useCode: "320", lotSF: 10200, yearBuilt: 1963 },
-  { id: 11, address: "88 Quincy Ave",     city: "Brockton",     units: 10, lastSale: 2006, lastPrice: 550000,  assessed: 990000,  equity: 67, ownerName: "Silva, Eduardo M",          ownerAddress: "44 Oak Hill Dr, Canton MA",          ownerType: "Individual", phone: "",             status: "Not Contacted", notes: "",                              score: 71, useCode: "320", lotSF: 5800,  yearBuilt: 1972 },
-  { id: 12, address: "334 Dwight St",     city: "Springfield",  units: 24, lastSale: 1997, lastPrice: 195000,  assessed: 580000,  equity: 97, ownerName: "Pioneer Valley LLC",        ownerAddress: "PO Box 2210, Springfield MA",        ownerType: "LLC",        phone: "",             status: "Not Contacted", notes: "",                              score: 96, useCode: "320", lotSF: 16800, yearBuilt: 1948 },
-];
 
 const STATUS_OPTIONS = ["Not Contacted", "Letter Sent", "Called", "Responded", "Meeting Set", "Offer Made", "Dead"];
 
@@ -40,6 +26,17 @@ const OWNER_TYPE_STYLES = {
 function SortIcon({ field, sort }) {
   if (sort.field !== field) return <span style={{ color: "#2d3748" }}> ·</span>;
   return <span>{sort.dir === "asc" ? " ↑" : " ↓"}</span>;
+}
+
+// Scoring: up to 40 pts years held + 40 pts equity + 10 pts non-LLC + 10 pts absentee
+function calcScore(equity, yearsOwned, ownerType, ownerAddress, propertyAddress) {
+  let s = 0;
+  s += Math.min(40, yearsOwned * 2);
+  s += Math.min(40, Math.round(equity * 0.4));
+  if (ownerType !== "LLC") s += 10;
+  const propStreet = (propertyAddress || "").split(",")[0].trim().toLowerCase();
+  if (propStreet && ownerAddress && !ownerAddress.toLowerCase().includes(propStreet)) s += 10;
+  return Math.min(99, s);
 }
 
 function scoreColor(s) {
@@ -168,8 +165,11 @@ function importCSV(text, currentYear) {
     const lotSF  = lotRaw > 0 && lotRaw < 100 ? Math.round(lotRaw * 43560) : Math.round(lotRaw) || 8000;
 
     // Combine owner address parts (MassGIS splits into OWN_ADDR / OWN_CITY / OWN_STATE / OWN_ZIP)
-    const ownerAddress = [get("ownerAddress"), get("ownerCity"), get("ownerState"), get("ownerZip")]
-      .filter(Boolean).join(", ") || "";
+    const ownerStreet = get("ownerAddress");
+    const ownerCity   = get("ownerCity");
+    const ownerState  = get("ownerState");
+    const ownerZip    = get("ownerZip");
+    const ownerAddress = [ownerStreet, ownerCity, ownerState, ownerZip].filter(Boolean).join(", ") || "";
 
     const yearsOwned = currentYear - lastSale;
     // lastPrice=0 is common in MA data (family transfers, inherited) — treat as unknown
@@ -178,7 +178,7 @@ function importCSV(text, currentYear) {
       : assessed > 0
         ? Math.min(95, Math.max(40, Math.round(40 + yearsOwned * 2)))  // estimate from hold time
         : 70;
-    const score = Math.min(99, Math.max(0, Math.round(equity * 0.5 + yearsOwned * 2 + 20)));
+    const score = calcScore(equity, yearsOwned, ownerType, ownerAddress, address);
 
     leads.push({
       id: Date.now() + i,
@@ -192,6 +192,10 @@ function importCSV(text, currentYear) {
       score,
       ownerName,
       ownerAddress,
+      ownerStreet,
+      ownerCity,
+      ownerState,
+      ownerZip,
       ownerType: ["Individual","LLC","Trust","Estate"].includes(ownerType) ? ownerType : inferOwnerType(ownerName),
       phone:     get("phone"),
       notes:     get("notes"),
@@ -220,6 +224,7 @@ export default function LeadDashboard() {
   const [activeTab, setActiveTab]   = useState("leads");
   const [importResult, setImportResult] = useState(null); // { added, skipped, errors }
   const [importMode, setImportMode] = useState("append"); // "append" | "replace"
+  const [campaign, setCampaign] = useState({ open: false, sending: false, results: null });
 
   const cities     = useMemo(() => ["All", ...Array.from(new Set(leads.map(l => l.city))).sort()], [leads]);
   const ownerTypes = ["All", "Individual", "LLC", "Trust", "Estate"];
@@ -258,6 +263,31 @@ export default function LeadDashboard() {
     offers:    leads.filter(l => l.status === "Offer Made").length,
   }), [leads]);
 
+  const hotUnmailed = leads.filter(l => l.score >= 90 && !l.mailedAt);
+
+  const sendPostcards = async () => {
+    setCampaign(c => ({ ...c, sending: true, results: null }));
+    try {
+      const res  = await fetch("/api/send-postcards", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ leads: hotUnmailed }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Server error");
+
+      const sent = data.results.filter(r => r.status === "sent").map(r => r.id);
+      setLeads(prev => prev.map(l =>
+        sent.includes(l.id)
+          ? { ...l, mailedAt: new Date().toISOString(), status: l.status === "Not Contacted" ? "Letter Sent" : l.status }
+          : l
+      ));
+      setCampaign(c => ({ ...c, sending: false, results: data.results }));
+    } catch (err) {
+      setCampaign(c => ({ ...c, sending: false, results: [{ status: "failed", reason: err.message }] }));
+    }
+  };
+
   const updateLead = (id, field, value) => {
     setLeads(prev => prev.map(l => l.id === id ? { ...l, [field]: value } : l));
     setSelected(prev => prev?.id === id ? { ...prev, [field]: value } : prev);
@@ -276,7 +306,8 @@ export default function LeadDashboard() {
       ? Math.max(0, Math.round(((assessed - lastPrice * 0.5) / assessed) * 100))
       : 70;
     const yearsOwned = CURRENT_YEAR - lastSale;
-    const score = Math.min(99, Math.max(0, Math.round(equity * 0.5 + yearsOwned * 2 + 20)));
+    const ownerType = newLead.ownerType || "Individual";
+    const score = calcScore(equity, yearsOwned, ownerType, newLead.ownerAddress || "", newLead.address || "");
 
     const lead = {
       ...newLead,
@@ -445,6 +476,13 @@ export default function LeadDashboard() {
               ))}
             </div>
 
+            {hotUnmailed.length > 0 && (
+              <button className="btn" onClick={() => setCampaign({ open: true, sending: false, results: null })}
+                style={{ width: "100%", background: "#10b981", color: "#fff", padding: "8px 0", borderRadius: 4, fontWeight: 700, fontSize: 10, letterSpacing: "0.12em", marginBottom: 16 }}>
+                SEND POSTCARDS ({hotUnmailed.length})
+              </button>
+            )}
+
             <div style={{ fontSize: 9, color: "#4a5568", letterSpacing: "0.15em", marginBottom: 12 }}>FILTER BY</div>
 
             {[
@@ -476,7 +514,7 @@ export default function LeadDashboard() {
                   <span style={{ fontSize: 9, color: "#4a5568" }}>{r}</span>
                 </div>
               ))}
-              <div style={{ fontSize: 8, color: "#374151", marginTop: 6, lineHeight: 1.4 }}>Score = equity% + years held + owner type bonus</div>
+              <div style={{ fontSize: 8, color: "#374151", marginTop: 6, lineHeight: 1.4 }}>Score: 40pts years held + 40pts equity + 10pts non-LLC + 10pts absentee</div>
             </div>
 
             <div style={{ marginTop: 12, padding: 12, background: "#0d1525", borderRadius: 4, border: "1px solid #1e2d45" }}>
@@ -568,7 +606,9 @@ export default function LeadDashboard() {
               </tbody>
             </table>
             {filtered.length === 0 && (
-              <div style={{ textAlign: "center", padding: 60, color: "#4a5568", fontSize: 12 }}>No leads match current filters</div>
+              <div style={{ textAlign: "center", padding: 60, color: "#4a5568", fontSize: 12 }}>
+                {leads.length === 0 ? "No leads loaded — import a CSV to get started" : "No leads match current filters"}
+              </div>
             )}
           </div>
         </div>
@@ -829,6 +869,62 @@ Total cost: $0/month to start`,
                 </a>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Send Postcards Modal ── */}
+      {campaign.open && (
+        <div className="modal-overlay" onClick={() => !campaign.sending && setCampaign(c => ({ ...c, open: false }))}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background: "#060b14", border: "1px solid #1e2d45", borderRadius: 8, width: "100%", maxWidth: 520, padding: 28, maxHeight: "80vh", overflowY: "auto" }}>
+            <div style={{ fontFamily: "'Libre Baskerville', serif", fontSize: 16, color: "#d4a843", marginBottom: 6 }}>Send Postcards</div>
+            <div style={{ fontSize: 11, color: "#4a5568", marginBottom: 20 }}>
+              6×9 postcards via Lob — mailed to all 🔥 HOT leads not yet contacted
+            </div>
+
+            {/* Results state */}
+            {campaign.results ? (
+              <div>
+                {campaign.results.map((r, i) => {
+                  const lead = leads.find(l => l.id === r.id);
+                  return (
+                    <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: "1px solid #0f1829", fontSize: 11 }}>
+                      <span style={{ color: "#94a3b8" }}>{lead ? `${lead.address}, ${lead.city}` : `Lead #${r.id}`}</span>
+                      {r.status === "sent"    && <span style={{ color: "#10b981", fontWeight: 600 }}>✓ Mailed{r.expectedDelivery ? ` · est. ${r.expectedDelivery}` : ""}</span>}
+                      {r.status === "skipped" && <span style={{ color: "#f59e0b" }}>⚠ Skipped — {r.reason}</span>}
+                      {r.status === "failed"  && <span style={{ color: "#ef4444" }}>✕ Failed — {r.reason}</span>}
+                    </div>
+                  );
+                })}
+                <button className="btn" onClick={() => setCampaign({ open: false, sending: false, results: null })}
+                  style={{ marginTop: 20, width: "100%", background: "#1e2d45", color: "#94a3b8", padding: "8px 0", borderRadius: 4, fontSize: 11 }}>
+                  Close
+                </button>
+              </div>
+            ) : (
+              <div>
+                <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 14 }}>
+                  {hotUnmailed.length} postcard{hotUnmailed.length !== 1 ? "s" : ""} · est. ${(hotUnmailed.length * 0.85).toFixed(2)} via Lob
+                </div>
+                {hotUnmailed.map(l => (
+                  <div key={l.id} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #0f1829", fontSize: 11 }}>
+                    <span style={{ color: "#94a3b8" }}>{l.address}, {l.city}</span>
+                    <span style={{ color: "#4a5568" }}>{l.ownerName}</span>
+                  </div>
+                ))}
+                <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+                  <button className="btn" onClick={() => setCampaign(c => ({ ...c, open: false }))}
+                    style={{ flex: 1, background: "#1e2d45", color: "#64748b", padding: "8px 0", borderRadius: 4, fontSize: 11 }}>
+                    Cancel
+                  </button>
+                  <button className="btn" onClick={sendPostcards} disabled={campaign.sending}
+                    style={{ flex: 2, background: campaign.sending ? "#064e3b" : "#10b981", color: "#fff", padding: "8px 0", borderRadius: 4, fontWeight: 700, fontSize: 11 }}>
+                    {campaign.sending ? "Sending…" : `Confirm — Send ${hotUnmailed.length} Postcard${hotUnmailed.length !== 1 ? "s" : ""}`}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
