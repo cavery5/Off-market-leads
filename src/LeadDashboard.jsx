@@ -165,8 +165,11 @@ function importCSV(text, currentYear) {
     const lotSF  = lotRaw > 0 && lotRaw < 100 ? Math.round(lotRaw * 43560) : Math.round(lotRaw) || 8000;
 
     // Combine owner address parts (MassGIS splits into OWN_ADDR / OWN_CITY / OWN_STATE / OWN_ZIP)
-    const ownerAddress = [get("ownerAddress"), get("ownerCity"), get("ownerState"), get("ownerZip")]
-      .filter(Boolean).join(", ") || "";
+    const ownerStreet = get("ownerAddress");
+    const ownerCity   = get("ownerCity");
+    const ownerState  = get("ownerState");
+    const ownerZip    = get("ownerZip");
+    const ownerAddress = [ownerStreet, ownerCity, ownerState, ownerZip].filter(Boolean).join(", ") || "";
 
     const yearsOwned = currentYear - lastSale;
     // lastPrice=0 is common in MA data (family transfers, inherited) — treat as unknown
@@ -189,6 +192,10 @@ function importCSV(text, currentYear) {
       score,
       ownerName,
       ownerAddress,
+      ownerStreet,
+      ownerCity,
+      ownerState,
+      ownerZip,
       ownerType: ["Individual","LLC","Trust","Estate"].includes(ownerType) ? ownerType : inferOwnerType(ownerName),
       phone:     get("phone"),
       notes:     get("notes"),
@@ -217,6 +224,7 @@ export default function LeadDashboard() {
   const [activeTab, setActiveTab]   = useState("leads");
   const [importResult, setImportResult] = useState(null); // { added, skipped, errors }
   const [importMode, setImportMode] = useState("append"); // "append" | "replace"
+  const [campaign, setCampaign] = useState({ open: false, sending: false, results: null });
 
   const cities     = useMemo(() => ["All", ...Array.from(new Set(leads.map(l => l.city))).sort()], [leads]);
   const ownerTypes = ["All", "Individual", "LLC", "Trust", "Estate"];
@@ -254,6 +262,31 @@ export default function LeadDashboard() {
     meetings:  leads.filter(l => l.status === "Meeting Set").length,
     offers:    leads.filter(l => l.status === "Offer Made").length,
   }), [leads]);
+
+  const hotUnmailed = leads.filter(l => l.score >= 90 && !l.mailedAt);
+
+  const sendPostcards = async () => {
+    setCampaign(c => ({ ...c, sending: true, results: null }));
+    try {
+      const res  = await fetch("/.netlify/functions/send-postcards", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ leads: hotUnmailed }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Server error");
+
+      const sent = data.results.filter(r => r.status === "sent").map(r => r.id);
+      setLeads(prev => prev.map(l =>
+        sent.includes(l.id)
+          ? { ...l, mailedAt: new Date().toISOString(), status: l.status === "Not Contacted" ? "Letter Sent" : l.status }
+          : l
+      ));
+      setCampaign(c => ({ ...c, sending: false, results: data.results }));
+    } catch (err) {
+      setCampaign(c => ({ ...c, sending: false, results: [{ status: "failed", reason: err.message }] }));
+    }
+  };
 
   const updateLead = (id, field, value) => {
     setLeads(prev => prev.map(l => l.id === id ? { ...l, [field]: value } : l));
@@ -442,6 +475,13 @@ export default function LeadDashboard() {
                 </div>
               ))}
             </div>
+
+            {hotUnmailed.length > 0 && (
+              <button className="btn" onClick={() => setCampaign({ open: true, sending: false, results: null })}
+                style={{ width: "100%", background: "#10b981", color: "#fff", padding: "8px 0", borderRadius: 4, fontWeight: 700, fontSize: 10, letterSpacing: "0.12em", marginBottom: 16 }}>
+                SEND POSTCARDS ({hotUnmailed.length})
+              </button>
+            )}
 
             <div style={{ fontSize: 9, color: "#4a5568", letterSpacing: "0.15em", marginBottom: 12 }}>FILTER BY</div>
 
@@ -829,6 +869,62 @@ Total cost: $0/month to start`,
                 </a>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Send Postcards Modal ── */}
+      {campaign.open && (
+        <div className="modal-overlay" onClick={() => !campaign.sending && setCampaign(c => ({ ...c, open: false }))}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background: "#060b14", border: "1px solid #1e2d45", borderRadius: 8, width: "100%", maxWidth: 520, padding: 28, maxHeight: "80vh", overflowY: "auto" }}>
+            <div style={{ fontFamily: "'Libre Baskerville', serif", fontSize: 16, color: "#d4a843", marginBottom: 6 }}>Send Postcards</div>
+            <div style={{ fontSize: 11, color: "#4a5568", marginBottom: 20 }}>
+              6×9 postcards via Lob — mailed to all 🔥 HOT leads not yet contacted
+            </div>
+
+            {/* Results state */}
+            {campaign.results ? (
+              <div>
+                {campaign.results.map((r, i) => {
+                  const lead = leads.find(l => l.id === r.id);
+                  return (
+                    <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: "1px solid #0f1829", fontSize: 11 }}>
+                      <span style={{ color: "#94a3b8" }}>{lead ? `${lead.address}, ${lead.city}` : `Lead #${r.id}`}</span>
+                      {r.status === "sent"    && <span style={{ color: "#10b981", fontWeight: 600 }}>✓ Mailed{r.expectedDelivery ? ` · est. ${r.expectedDelivery}` : ""}</span>}
+                      {r.status === "skipped" && <span style={{ color: "#f59e0b" }}>⚠ Skipped — {r.reason}</span>}
+                      {r.status === "failed"  && <span style={{ color: "#ef4444" }}>✕ Failed — {r.reason}</span>}
+                    </div>
+                  );
+                })}
+                <button className="btn" onClick={() => setCampaign({ open: false, sending: false, results: null })}
+                  style={{ marginTop: 20, width: "100%", background: "#1e2d45", color: "#94a3b8", padding: "8px 0", borderRadius: 4, fontSize: 11 }}>
+                  Close
+                </button>
+              </div>
+            ) : (
+              <div>
+                <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 14 }}>
+                  {hotUnmailed.length} postcard{hotUnmailed.length !== 1 ? "s" : ""} · est. ${(hotUnmailed.length * 0.85).toFixed(2)} via Lob
+                </div>
+                {hotUnmailed.map(l => (
+                  <div key={l.id} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #0f1829", fontSize: 11 }}>
+                    <span style={{ color: "#94a3b8" }}>{l.address}, {l.city}</span>
+                    <span style={{ color: "#4a5568" }}>{l.ownerName}</span>
+                  </div>
+                ))}
+                <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+                  <button className="btn" onClick={() => setCampaign(c => ({ ...c, open: false }))}
+                    style={{ flex: 1, background: "#1e2d45", color: "#64748b", padding: "8px 0", borderRadius: 4, fontSize: 11 }}>
+                    Cancel
+                  </button>
+                  <button className="btn" onClick={sendPostcards} disabled={campaign.sending}
+                    style={{ flex: 2, background: campaign.sending ? "#064e3b" : "#10b981", color: "#fff", padding: "8px 0", borderRadius: 4, fontWeight: 700, fontSize: 11 }}>
+                    {campaign.sending ? "Sending…" : `Confirm — Send ${hotUnmailed.length} Postcard${hotUnmailed.length !== 1 ? "s" : ""}`}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
