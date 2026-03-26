@@ -73,14 +73,13 @@ function buildFront(lead) {
     <h1>${greeting}</h1>
     <p>I'm a local investor building a small portfolio of apartment buildings in <strong>${lead.city}</strong> to hold long-term for my family.</p>
     <p>If you've ever thought about selling <strong>${lead.address}</strong> — on your own timeline, no agents, no listing hassle — I'd love a private conversation.</p>
+    <p>Scan the QR code below to let me know you're open to talking and I'll reach out to you directly.</p>
   </div>
   <div>
     <hr class="divider">
     <div class="cta">
       <img src="${qrUrl}" width="260" height="260" alt="Scan to respond">
       <div>
-        <div class="cta-text">Scan the QR code or call me directly</div>
-        ${FROM_PHONE ? `<div class="cta-url">${FROM_PHONE}</div>` : ""}
         <div class="cta-url">${SITE_URL}/respond.html</div>
       </div>
     </div>
