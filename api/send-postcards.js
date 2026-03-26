@@ -135,16 +135,14 @@ function buildFollowUpFront(lead) {
   <div>
     <h1>${greeting}</h1>
     <p>I reached out a few weeks ago about <strong>${lead.address}</strong> and wanted to follow up one last time.</p>
-    <p>I'm a local investor — I buy and hold, not flip. My goal is to build a small portfolio of well-kept buildings in <strong>${lead.city}</strong> that I can pass on to my family. I'm not a developer and I'm not looking to displace anyone.</p>
-    <p>If selling has ever crossed your mind, I'd welcome a private conversation on your timeline. No agents, no pressure, no obligation.</p>
+    <p>I'm a local investor — I buy and hold, not flip. My goal is to build a small portfolio of well-kept buildings in <strong>${lead.city}</strong> that I can pass on to my family. I'm not looking to displace anyone.</p>
+    <p>If selling has ever crossed your mind, scan the QR code below and I'll be in touch on your schedule — no pressure, no obligation.</p>
   </div>
   <div>
     <hr class="divider">
     <div class="cta">
       <img src="${qrUrl}" width="260" height="260" alt="Scan to respond">
       <div>
-        <div class="cta-text">Call or scan the QR code whenever you're ready</div>
-        ${FROM_PHONE ? `<div class="cta-url">${FROM_PHONE}</div>` : ""}
         <div class="cta-url">${SITE_URL}/respond.html</div>
       </div>
     </div>
