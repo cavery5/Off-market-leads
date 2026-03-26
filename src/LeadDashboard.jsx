@@ -274,6 +274,16 @@ export default function LeadDashboard() {
     offers:    leads.filter(l => l.status === "Offer Made").length,
   }), [leads, followUpReady]);
 
+  // Campaign modal derived values (at component level — esbuild rejects IIFEs in JSX)
+  const campaignIsFollowUp = campaign.type === "followup";
+  const campaignTargets    = campaignIsFollowUp ? followUpTargets : mailTargets;
+  const campaignAccent     = campaignIsFollowUp ? "#f59e0b" : "#10b981";
+  const campaignAccentDark = campaignIsFollowUp ? "#78350f" : "#064e3b";
+  const campaignTitle      = campaignIsFollowUp ? "Send Follow-Up" : "Send Postcards";
+  const campaignSubtitle   = campaignIsFollowUp
+    ? `Round 2 follow-up — leads mailed ${FOLLOWUP_DAYS}+ days ago with no response`
+    : "Round 1 outreach — 6×9 postcards via Lob to HOT unmailed leads";
+
   // helpers
   const daysSinceMailed = (lead) => {
     const hist = lead.mailHistory;
@@ -985,72 +995,60 @@ Total cost: $0/month to start`,
       )}
 
       {/* ── Send Postcards Modal ── */}
-      {campaign.open && (() => {
-        const isFollowUp    = campaign.type === "followup";
-        const targets       = isFollowUp ? followUpTargets : mailTargets;
-        const accentColor   = isFollowUp ? "#f59e0b" : "#10b981";
-        const accentDark    = isFollowUp ? "#78350f" : "#064e3b";
-        const title         = isFollowUp ? "Send Follow-Up" : "Send Postcards";
-        const subtitle      = isFollowUp
-          ? `Round 2 follow-up — leads mailed ${FOLLOWUP_DAYS}+ days ago with no response`
-          : "Round 1 outreach — 6×9 postcards via Lob to HOT unmailed leads";
-        return (
-          <div className="modal-overlay" onClick={() => !campaign.sending && setCampaign(c => ({ ...c, open: false }))}>
-            <div onClick={e => e.stopPropagation()}
-              style={{ background: "#060b14", border: "1px solid #1e2d45", borderRadius: 8, width: "100%", maxWidth: 520, padding: 28, maxHeight: "80vh", overflowY: "auto" }}>
-              <div style={{ fontFamily: "'Libre Baskerville', serif", fontSize: 16, color: "#d4a843", marginBottom: 6 }}>{title}</div>
-              <div style={{ fontSize: 11, color: "#4a5568", marginBottom: 20 }}>{subtitle}</div>
+      {campaign.open && (
+        <div className="modal-overlay" onClick={() => !campaign.sending && setCampaign(c => ({ ...c, open: false }))}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background: "#060b14", border: "1px solid #1e2d45", borderRadius: 8, width: "100%", maxWidth: 520, padding: 28, maxHeight: "80vh", overflowY: "auto" }}>
+            <div style={{ fontFamily: "'Libre Baskerville', serif", fontSize: 16, color: "#d4a843", marginBottom: 6 }}>{campaignTitle}</div>
+            <div style={{ fontSize: 11, color: "#4a5568", marginBottom: 20 }}>{campaignSubtitle}</div>
 
-              {campaign.results ? (
-                <div>
-                  {campaign.results.map((r, i) => {
-                    const lead = leads.find(l => l.id === r.id);
-                    return (
-                      <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: "1px solid #0f1829", fontSize: 11 }}>
-                        <span style={{ color: "#94a3b8" }}>{lead ? `${lead.address}, ${lead.city}` : `Lead #${r.id}`}</span>
-                        {r.status === "sent"    && <span style={{ color: accentColor, fontWeight: 600 }}>✓ Mailed{r.expectedDelivery ? ` · est. ${r.expectedDelivery}` : ""}</span>}
-                        {r.status === "skipped" && <span style={{ color: "#f59e0b" }}>⚠ Skipped — {r.reason}</span>}
-                        {r.status === "failed"  && <span style={{ color: "#ef4444" }}>✕ Failed — {r.reason}</span>}
-                      </div>
-                    );
-                  })}
-                  <button className="btn" onClick={() => setCampaign({ open: false, sending: false, results: null, type: "new" })}
-                    style={{ marginTop: 20, width: "100%", background: "#1e2d45", color: "#94a3b8", padding: "8px 0", borderRadius: 4, fontSize: 11 }}>
-                    Close
+            {campaign.results ? (
+              <div>
+                {campaign.results.map((r, i) => {
+                  const lead = leads.find(l => l.id === r.id);
+                  return (
+                    <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: "1px solid #0f1829", fontSize: 11 }}>
+                      <span style={{ color: "#94a3b8" }}>{lead ? `${lead.address}, ${lead.city}` : `Lead #${r.id}`}</span>
+                      {r.status === "sent"    && <span style={{ color: campaignAccent, fontWeight: 600 }}>✓ Mailed{r.expectedDelivery ? ` · est. ${r.expectedDelivery}` : ""}</span>}
+                      {r.status === "skipped" && <span style={{ color: "#f59e0b" }}>⚠ Skipped — {r.reason}</span>}
+                      {r.status === "failed"  && <span style={{ color: "#ef4444" }}>✕ Failed — {r.reason}</span>}
+                    </div>
+                  );
+                })}
+                <button className="btn" onClick={() => setCampaign({ open: false, sending: false, results: null, type: "new" })}
+                  style={{ marginTop: 20, width: "100%", background: "#1e2d45", color: "#94a3b8", padding: "8px 0", borderRadius: 4, fontSize: 11 }}>
+                  Close
+                </button>
+              </div>
+            ) : (
+              <div>
+                <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 14 }}>
+                  {campaignTargets.length} postcard{campaignTargets.length !== 1 ? "s" : ""}
+                  {selectedForMail.size > 0 ? " (selected)" : campaignIsFollowUp ? ` (all ${FOLLOWUP_DAYS}d+ unmailed)` : " (all HOT unmailed)"}
+                  {" "}· est. ${(campaignTargets.length * 0.85).toFixed(2)} via Lob
+                </div>
+                {campaignTargets.map(l => (
+                  <div key={l.id} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #0f1829", fontSize: 11 }}>
+                    <span style={{ color: "#94a3b8" }}>{l.address}, {l.city}</span>
+                    <div style={{ textAlign: "right" }}>
+                      <span style={{ color: "#4a5568" }}>{l.ownerName}</span>
+                      {campaignIsFollowUp && <span style={{ color: "#f59e0b", fontSize: 9, marginLeft: 8 }}>R{currentRound(l)} · {daysSinceMailed(l)}d ago</span>}
+                    </div>
+                  </div>
+                ))}
+                <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+                  <button className="btn" onClick={() => setCampaign(c => ({ ...c, open: false }))}
+                    style={{ flex: 1, background: "#1e2d45", color: "#64748b", padding: "8px 0", borderRadius: 4, fontSize: 11 }}>
+                    Cancel
+                  </button>
+                  <button className="btn" onClick={() => sendPostcards(campaign.type)} disabled={campaign.sending}
+                    style={{ flex: 2, background: campaign.sending ? campaignAccentDark : campaignAccent, color: campaignIsFollowUp ? "#000" : "#fff", padding: "8px 0", borderRadius: 4, fontWeight: 700, fontSize: 11 }}>
+                    {campaign.sending ? "Sending…" : `Confirm — Send ${campaignTargets.length} Postcard${campaignTargets.length !== 1 ? "s" : ""}`}
                   </button>
                 </div>
-              ) : (
-                <div>
-                  <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 14 }}>
-                    {targets.length} postcard{targets.length !== 1 ? "s" : ""}
-                    {selectedForMail.size > 0 ? " (selected)" : isFollowUp ? ` (all ${FOLLOWUP_DAYS}d+ unmailed)` : " (all HOT unmailed)"}
-                    {" "}· est. ${(targets.length * 0.85).toFixed(2)} via Lob
-                  </div>
-                  {targets.map(l => (
-                    <div key={l.id} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #0f1829", fontSize: 11 }}>
-                      <span style={{ color: "#94a3b8" }}>{l.address}, {l.city}</span>
-                      <div style={{ textAlign: "right" }}>
-                        <span style={{ color: "#4a5568" }}>{l.ownerName}</span>
-                        {isFollowUp && <span style={{ color: "#f59e0b", fontSize: 9, marginLeft: 8 }}>R{currentRound(l)} · {daysSinceMailed(l)}d ago</span>}
-                      </div>
-                    </div>
-                  ))}
-                  <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
-                    <button className="btn" onClick={() => setCampaign(c => ({ ...c, open: false }))}
-                      style={{ flex: 1, background: "#1e2d45", color: "#64748b", padding: "8px 0", borderRadius: 4, fontSize: 11 }}>
-                      Cancel
-                    </button>
-                    <button className="btn" onClick={() => sendPostcards(campaign.type)} disabled={campaign.sending}
-                      style={{ flex: 2, background: campaign.sending ? accentDark : accentColor, color: isFollowUp ? "#000" : "#fff", padding: "8px 0", borderRadius: 4, fontWeight: 700, fontSize: 11 }}>
-                      {campaign.sending ? "Sending…" : `Confirm — Send ${targets.length} Postcard${targets.length !== 1 ? "s" : ""}`}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
-        );
-      })()}
         </div>
       )}
 
