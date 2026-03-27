@@ -230,6 +230,7 @@ export default function LeadDashboard() {
   const [importMode, setImportMode] = useState("append"); // "append" | "replace"
   const [campaign, setCampaign] = useState({ open: false, sending: false, results: null, type: "new" });
   const [selectedForMail, setSelectedForMail] = useState(new Set());
+  const [addError, setAddError] = useState("");
 
   useEffect(() => {
     try { localStorage.setItem("offmarket_leads", JSON.stringify(leads)); } catch {}
@@ -361,7 +362,9 @@ export default function LeadDashboard() {
   };
 
   const addLead = () => {
-    if (!newLead.address || !newLead.units) return;
+    if (!newLead.address) { setAddError("Property address is required."); return; }
+    if (!newLead.units)   { setAddError("Number of units is required."); return; }
+    setAddError("");
 
     // Parse numeric fields before arithmetic to avoid NaN from string operations
     const assessed  = parseInt(newLead.assessed,  10) || 0;
@@ -376,6 +379,19 @@ export default function LeadDashboard() {
     const ownerType = newLead.ownerType || "Individual";
     const score = calcScore(equity, yearsOwned, ownerType, newLead.ownerAddress || "", newLead.address || "");
 
+    // Parse "Street, City, State Zip" or "Street, City, State, Zip" into Lob-ready fields
+    const parseOwnerAddr = (raw) => {
+      const parts = (raw || "").split(",").map(p => p.trim()).filter(Boolean);
+      if (parts.length < 2) return { ownerStreet: raw || "", ownerCity: "", ownerState: "MA", ownerZip: "" };
+      const ownerStreet = parts[0];
+      const ownerCity   = parts[1];
+      const tail        = parts.slice(2).join(" ").trim().split(/\s+/);
+      const ownerState  = tail.length >= 2 ? tail[0] : "MA";
+      const ownerZip    = tail.length >= 2 ? tail[1] : (tail[0] || "");
+      return { ownerStreet, ownerCity, ownerState, ownerZip };
+    };
+    const { ownerStreet, ownerCity, ownerState, ownerZip } = parseOwnerAddr(newLead.ownerAddress);
+
     const lead = {
       ...newLead,
       id: Date.now(),
@@ -385,6 +401,10 @@ export default function LeadDashboard() {
       assessed,
       equity,
       score,
+      ownerStreet,
+      ownerCity,
+      ownerState,
+      ownerZip,
       status:    "Not Contacted",
       yearBuilt: 1970,
       lotSF:     8000,
@@ -393,6 +413,7 @@ export default function LeadDashboard() {
 
     setLeads(prev => [...prev, lead]);
     setNewLead(EMPTY_NEW_LEAD);
+    setAddError("");
     setShowAdd(false);
   };
 
@@ -1096,12 +1117,15 @@ Total cost: $0/month to start`,
                 rows={2} style={{ width: "100%", resize: "none" }} />
             </div>
 
-            <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
+            {addError && (
+              <div style={{ color: "#ef4444", fontSize: 11, marginTop: 12 }}>{addError}</div>
+            )}
+            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
               <button className="btn" onClick={addLead}
                 style={{ flex: 1, background: "#d4a843", color: "#060b14", padding: 10, borderRadius: 4, fontWeight: 600 }}>
                 ADD LEAD
               </button>
-              <button className="btn" onClick={() => setShowAdd(false)}
+              <button className="btn" onClick={() => { setShowAdd(false); setAddError(""); }}
                 style={{ background: "#1e2d45", color: "#64748b", padding: "10px 16px", borderRadius: 4 }}>
                 CANCEL
               </button>

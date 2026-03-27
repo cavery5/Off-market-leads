@@ -17,6 +17,7 @@ const FROM_CITY          = process.env.FROM_CITY;
 const FROM_STATE         = process.env.FROM_STATE || "MA";
 const FROM_ZIP           = process.env.FROM_ZIP;
 const FROM_PHONE         = process.env.FROM_PHONE || "";
+const PHOTO_URL          = process.env.PHOTO_URL || "";   // optional headshot URL
 const SITE_URL           = (process.env.VITE_SITE_URL || "").replace(/\/$/, "");
 
 function getFirstName(ownerName, ownerType) {
@@ -32,6 +33,10 @@ function buildFront(lead) {
   const responseUrl = `${SITE_URL}/respond.html?lid=${lead.id}&name=${encodeURIComponent(lead.ownerName)}&addr=${encodeURIComponent(lead.address + ", " + lead.city)}`;
   const qrUrl       = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&color=1a3a5c&data=${encodeURIComponent(responseUrl)}`;
 
+  const photoHtml = PHOTO_URL
+    ? `<img src="${PHOTO_URL}" alt="${FROM_NAME}" style="position:absolute;top:180px;right:180px;width:380px;height:380px;border-radius:50%;object-fit:cover;border:8px solid #1a3a5c;">`
+    : "";
+
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -46,29 +51,19 @@ function buildFront(lead) {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-  }
-  .eyebrow {
-    display: inline-block;
-    background: #1a3a5c;
-    color: #ffffff;
-    font-size: 52px;
-    font-weight: 700;
-    letter-spacing: 5px;
-    text-transform: uppercase;
-    padding: 20px 44px;
-    margin-bottom: 90px;
+    position: relative;
   }
   h1 { font-size: 130px; font-weight: 700; color: #1a3a5c; line-height: 1.1; margin-bottom: 70px; }
   p  { font-size: 70px; color: #333333; line-height: 1.55; margin-bottom: 44px; }
   strong { color: #1a3a5c; }
   .divider { border: none; border-top: 5px solid #1a3a5c; margin: 60px 0; }
   .cta { display: flex; align-items: center; gap: 80px; }
-  .cta-text { font-size: 62px; color: #1a3a5c; font-weight: 600; line-height: 1.4; }
   .cta-url  { font-size: 50px; color: #888; margin-top: 14px; word-break: break-all; }
   .sig { font-size: 70px; font-style: italic; color: #1a3a5c; }
 </style>
 </head>
 <body>
+  ${photoHtml}
   <div>
     <h1>${greeting}</h1>
     <p>I'm a local investor building a small portfolio of apartment buildings in <strong>${lead.city}</strong> to hold long-term for my family.</p>
@@ -95,6 +90,10 @@ function buildFollowUpFront(lead) {
   const responseUrl = `${SITE_URL}/respond.html?lid=${lead.id}&name=${encodeURIComponent(lead.ownerName)}&addr=${encodeURIComponent(lead.address + ", " + lead.city)}`;
   const qrUrl       = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&color=1a3a5c&data=${encodeURIComponent(responseUrl)}`;
 
+  const photoHtml = PHOTO_URL
+    ? `<img src="${PHOTO_URL}" alt="${FROM_NAME}" style="position:absolute;top:180px;right:180px;width:380px;height:380px;border-radius:50%;object-fit:cover;border:8px solid #1a3a5c;">`
+    : "";
+
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -109,29 +108,19 @@ function buildFollowUpFront(lead) {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-  }
-  .eyebrow {
-    display: inline-block;
-    background: #78350f;
-    color: #ffffff;
-    font-size: 52px;
-    font-weight: 700;
-    letter-spacing: 5px;
-    text-transform: uppercase;
-    padding: 20px 44px;
-    margin-bottom: 90px;
+    position: relative;
   }
   h1 { font-size: 130px; font-weight: 700; color: #1a3a5c; line-height: 1.1; margin-bottom: 70px; }
   p  { font-size: 70px; color: #333333; line-height: 1.55; margin-bottom: 44px; }
   strong { color: #1a3a5c; }
   .divider { border: none; border-top: 5px solid #1a3a5c; margin: 60px 0; }
   .cta { display: flex; align-items: center; gap: 80px; }
-  .cta-text { font-size: 62px; color: #1a3a5c; font-weight: 600; line-height: 1.4; }
   .cta-url  { font-size: 50px; color: #888; margin-top: 14px; word-break: break-all; }
   .sig { font-size: 70px; font-style: italic; color: #1a3a5c; }
 </style>
 </head>
 <body>
+  ${photoHtml}
   <div>
     <h1>${greeting}</h1>
     <p>I reached out a few weeks ago about <strong>${lead.address}</strong> and wanted to follow up one last time.</p>
