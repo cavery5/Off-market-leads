@@ -264,27 +264,7 @@ export default function LeadDashboard() {
     });
   }, [leads, filters, sort]);
 
-  const stats = useMemo(() => ({
-    total:     leads.length,
-    hot:       leads.filter(l => l.score >= 90).length,
-    mailed:    leads.filter(l => currentRound(l) > 0).length,
-    followUp:  followUpReady.length,
-    contacted: leads.filter(l => l.status !== "Not Contacted" && l.status !== "Dead").length,
-    meetings:  leads.filter(l => l.status === "Meeting Set").length,
-    offers:    leads.filter(l => l.status === "Offer Made").length,
-  }), [leads, followUpReady]);
-
-  // Campaign modal derived values (at component level — esbuild rejects IIFEs in JSX)
-  const campaignIsFollowUp = campaign.type === "followup";
-  const campaignTargets    = campaignIsFollowUp ? followUpTargets : mailTargets;
-  const campaignAccent     = campaignIsFollowUp ? "#f59e0b" : "#10b981";
-  const campaignAccentDark = campaignIsFollowUp ? "#78350f" : "#064e3b";
-  const campaignTitle      = campaignIsFollowUp ? "Send Follow-Up" : "Send Postcards";
-  const campaignSubtitle   = campaignIsFollowUp
-    ? `Round 2 follow-up — leads mailed ${FOLLOWUP_DAYS}+ days ago with no response`
-    : "Round 1 outreach — 6×9 postcards via Lob to HOT unmailed leads";
-
-  // helpers
+  // helpers — must come before stats and campaign derived values
   const daysSinceMailed = (lead) => {
     const hist = lead.mailHistory;
     if (!hist?.length) return null;
@@ -306,6 +286,26 @@ export default function LeadDashboard() {
   const followUpTargets = selectedForMail.size > 0
     ? followUpReady.filter(l => selectedForMail.has(l.id))
     : followUpReady;
+
+  const stats = useMemo(() => ({
+    total:     leads.length,
+    hot:       leads.filter(l => l.score >= 90).length,
+    mailed:    leads.filter(l => currentRound(l) > 0).length,
+    followUp:  followUpReady.length,
+    contacted: leads.filter(l => l.status !== "Not Contacted" && l.status !== "Dead").length,
+    meetings:  leads.filter(l => l.status === "Meeting Set").length,
+    offers:    leads.filter(l => l.status === "Offer Made").length,
+  }), [leads, followUpReady]);
+
+  // Campaign modal derived values (at component level — esbuild rejects IIFEs in JSX)
+  const campaignIsFollowUp = campaign.type === "followup";
+  const campaignTargets    = campaignIsFollowUp ? followUpTargets : mailTargets;
+  const campaignAccent     = campaignIsFollowUp ? "#f59e0b" : "#10b981";
+  const campaignAccentDark = campaignIsFollowUp ? "#78350f" : "#064e3b";
+  const campaignTitle      = campaignIsFollowUp ? "Send Follow-Up" : "Send Postcards";
+  const campaignSubtitle   = campaignIsFollowUp
+    ? `Round 2 follow-up — leads mailed ${FOLLOWUP_DAYS}+ days ago with no response`
+    : "Round 1 outreach — 6×9 postcards via Lob to HOT unmailed leads";
 
   const toggleMailSelect = (id) => {
     setSelectedForMail(prev => {
