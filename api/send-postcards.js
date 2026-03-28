@@ -27,51 +27,37 @@ function getFirstName(ownerName, ownerType) {
   return ownerName.split(" ")[0];
 }
 
-// Lob renders HTML at ~150 DPI → 6x9 card = ~900x1350px viewport.
-// All dimensions are calibrated to this canvas size.
-
-function buildFront(lead) {
-  const firstName   = getFirstName(lead.ownerName, lead.ownerType);
-  const greeting    = firstName ? `Hi ${firstName},` : "Dear Property Owner,";
-  const responseUrl = `${SITE_URL}/respond.html?lid=${lead.id}&name=${encodeURIComponent(lead.ownerName)}&addr=${encodeURIComponent(lead.address + ", " + lead.city)}`;
-  const qrUrl       = `https://api.qrserver.com/v1/create-qr-code/?size=90x90&color=1a3a5c&data=${encodeURIComponent(responseUrl)}`;
-
-  const photoHtml = PHOTO_URL
-    ? `<img src="${PHOTO_URL}" alt="${FROM_NAME}" style="position:absolute;bottom:82px;right:75px;width:95px;height:95px;border-radius:50%;object-fit:cover;border:3px solid #1a3a5c;">`
-    : "";
-
-  return `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<style>
+// Shared CSS for front templates
+function frontStyles(headerBg, labelColor) {
+  return `
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
+  html, body {
     width: 900px; height: 1350px;
     font-family: 'Helvetica Neue', Arial, sans-serif;
     background: #ffffff;
-    position: relative;
+  }
+  body {
+    display: flex;
+    flex-direction: column;
     overflow: hidden;
   }
   .header {
-    position: absolute;
-    top: 0; left: 0; right: 0; height: 64px;
-    background: #1a3a5c;
+    flex: 0 0 64px;
+    background: ${headerBg};
     display: flex; align-items: center;
     padding: 0 75px;
   }
   .header-label {
-    color: #c8a84b;
+    color: ${labelColor};
     font-size: 11px;
     font-weight: 700;
     letter-spacing: 3px;
     text-transform: uppercase;
   }
   .content {
-    position: absolute;
-    top: 64px; bottom: 190px;
-    left: 0; right: 0;
-    padding: 38px 75px 24px;
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 36px 75px 20px;
     overflow: hidden;
   }
   h1 {
@@ -80,27 +66,45 @@ function buildFront(lead) {
     font-style: italic;
     color: #1a3a5c;
     line-height: 1.2;
-    margin-bottom: 20px;
+    margin-bottom: 18px;
   }
   p {
     font-size: 13.5px;
     color: #2d3748;
     line-height: 1.65;
-    margin-bottom: 13px;
+    margin-bottom: 12px;
     overflow-wrap: break-word;
   }
   strong { color: #1a3a5c; font-weight: 700; }
   .footer {
-    position: absolute;
-    bottom: 0; left: 0; right: 0; height: 190px;
-    padding: 20px 75px 48px;
-    border-top: 1.5px solid #1a3a5c;
+    flex: 0 0 190px;
+    padding: 18px 75px 46px;
+    border-top: 1.5px solid #d1d5db;
+    position: relative;
   }
   .cta { display: flex; align-items: center; gap: 18px; }
   .cta-label { font-size: 12.5px; font-weight: 600; color: #1a3a5c; margin-bottom: 4px; }
   .cta-url   { font-size: 10px; color: #718096; }
-  .sig { font-size: 14px; font-style: italic; color: #1a3a5c; margin-top: 12px; }
-</style>
+  .sig { font-size: 14px; font-style: italic; color: #1a3a5c; margin-top: 14px; }
+  .photo {
+    position: absolute;
+    bottom: 46px; right: 75px;
+    width: 90px; height: 90px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid #1a3a5c;
+  }`;
+}
+
+function buildFront(lead) {
+  const firstName   = getFirstName(lead.ownerName, lead.ownerType);
+  const greeting    = firstName ? `Hi ${firstName},` : "Dear Property Owner,";
+  const responseUrl = `${SITE_URL}/respond.html?lid=${lead.id}&name=${encodeURIComponent(lead.ownerName)}&addr=${encodeURIComponent(lead.address + ", " + lead.city)}`;
+  const qrUrl       = `https://api.qrserver.com/v1/create-qr-code/?size=90x90&color=1a3a5c&data=${encodeURIComponent(responseUrl)}`;
+
+  return `<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<style>${frontStyles("#1a3a5c", "#c8a84b")}</style>
 </head>
 <body>
   <div class="header">
@@ -121,8 +125,8 @@ function buildFront(lead) {
       </div>
     </div>
     <div class="sig">— ${FROM_NAME}</div>
+    ${PHOTO_URL ? `<img class="photo" src="${PHOTO_URL}" alt="${FROM_NAME}">` : ""}
   </div>
-  ${photoHtml}
 </body>
 </html>`;
 }
@@ -133,71 +137,9 @@ function buildFollowUpFront(lead) {
   const responseUrl = `${SITE_URL}/respond.html?lid=${lead.id}&name=${encodeURIComponent(lead.ownerName)}&addr=${encodeURIComponent(lead.address + ", " + lead.city)}`;
   const qrUrl       = `https://api.qrserver.com/v1/create-qr-code/?size=90x90&color=1a3a5c&data=${encodeURIComponent(responseUrl)}`;
 
-  const photoHtml = PHOTO_URL
-    ? `<img src="${PHOTO_URL}" alt="${FROM_NAME}" style="position:absolute;bottom:82px;right:75px;width:95px;height:95px;border-radius:50%;object-fit:cover;border:3px solid #1a3a5c;">`
-    : "";
-
   return `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    width: 900px; height: 1350px;
-    font-family: 'Helvetica Neue', Arial, sans-serif;
-    background: #ffffff;
-    position: relative;
-    overflow: hidden;
-  }
-  .header {
-    position: absolute;
-    top: 0; left: 0; right: 0; height: 64px;
-    background: #78350f;
-    display: flex; align-items: center;
-    padding: 0 75px;
-  }
-  .header-label {
-    color: #fde68a;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 3px;
-    text-transform: uppercase;
-  }
-  .content {
-    position: absolute;
-    top: 64px; bottom: 190px;
-    left: 0; right: 0;
-    padding: 38px 75px 24px;
-    overflow: hidden;
-  }
-  h1 {
-    font-size: 27px;
-    font-weight: 700;
-    font-style: italic;
-    color: #1a3a5c;
-    line-height: 1.2;
-    margin-bottom: 20px;
-  }
-  p {
-    font-size: 13.5px;
-    color: #2d3748;
-    line-height: 1.65;
-    margin-bottom: 13px;
-    overflow-wrap: break-word;
-  }
-  strong { color: #1a3a5c; font-weight: 700; }
-  .footer {
-    position: absolute;
-    bottom: 0; left: 0; right: 0; height: 190px;
-    padding: 20px 75px 48px;
-    border-top: 1.5px solid #1a3a5c;
-  }
-  .cta { display: flex; align-items: center; gap: 18px; }
-  .cta-label { font-size: 12.5px; font-weight: 600; color: #1a3a5c; margin-bottom: 4px; }
-  .cta-url   { font-size: 10px; color: #718096; }
-  .sig { font-size: 14px; font-style: italic; color: #1a3a5c; margin-top: 12px; }
-</style>
+<html><head><meta charset="utf-8">
+<style>${frontStyles("#78350f", "#fde68a")}</style>
 </head>
 <body>
   <div class="header">
@@ -218,32 +160,31 @@ function buildFollowUpFront(lead) {
       </div>
     </div>
     <div class="sig">— ${FROM_NAME}</div>
+    ${PHOTO_URL ? `<img class="photo" src="${PHOTO_URL}" alt="${FROM_NAME}">` : ""}
   </div>
-  ${photoHtml}
 </body>
 </html>`;
 }
 
 function buildBack() {
   return `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
+<html><head><meta charset="utf-8">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
+  html, body {
     width: 900px; height: 1350px;
     font-family: 'Helvetica Neue', Arial, sans-serif;
     background: #ffffff;
-    position: relative;
+  }
+  body {
+    display: flex;
+    flex-direction: row;
     overflow: hidden;
   }
   .left {
-    position: absolute;
-    left: 0; top: 0;
-    width: 435px; height: 1350px;
+    flex: 0 0 440px;
     border-right: 1.5px solid #e2e8f0;
-    padding: 0 55px;
+    padding: 0 52px;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -251,20 +192,20 @@ function buildBack() {
   .accent {
     width: 36px; height: 4px;
     background: #c8a84b;
-    margin-bottom: 22px;
+    margin-bottom: 20px;
   }
   .left h2 {
     font-size: 19px;
     font-weight: 700;
     color: #1a3a5c;
-    line-height: 1.25;
-    margin-bottom: 18px;
+    line-height: 1.3;
+    margin-bottom: 16px;
   }
   .left p {
     font-size: 13px;
     color: #4a5568;
     line-height: 1.65;
-    margin-bottom: 12px;
+    margin-bottom: 11px;
     overflow-wrap: break-word;
   }
   .from {
@@ -273,11 +214,14 @@ function buildBack() {
     color: #1a3a5c;
     margin-top: 8px;
   }
+  .right {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 0 40px 170px 40px;
+  }
   .address-block {
-    position: absolute;
-    right: 40px;
-    bottom: 170px;
-    width: 380px;
     font-size: 13px;
     line-height: 1.6;
     color: #111;
@@ -292,7 +236,9 @@ function buildBack() {
     <p>If the timing is ever right, I'd genuinely love to connect.</p>
     <div class="from">— ${FROM_NAME}</div>
   </div>
-  <div class="address-block">{{address_block}}</div>
+  <div class="right">
+    <div class="address-block">{{address_block}}</div>
+  </div>
 </body>
 </html>`;
 }
