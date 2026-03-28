@@ -31,10 +31,10 @@ function buildFront(lead) {
   const firstName   = getFirstName(lead.ownerName, lead.ownerType);
   const greeting    = firstName ? `Hi ${firstName},` : "Dear Property Owner,";
   const responseUrl = `${SITE_URL}/respond.html?lid=${lead.id}&name=${encodeURIComponent(lead.ownerName)}&addr=${encodeURIComponent(lead.address + ", " + lead.city)}`;
-  const qrUrl       = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&color=1a3a5c&data=${encodeURIComponent(responseUrl)}`;
+  const qrUrl       = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&color=1a3a5c&data=${encodeURIComponent(responseUrl)}`;
 
   const photoHtml = PHOTO_URL
-    ? `<img src="${PHOTO_URL}" alt="${FROM_NAME}" style="position:absolute;bottom:160px;right:160px;width:220px;height:220px;border-radius:50%;object-fit:cover;border:5px solid #1a3a5c;">`
+    ? `<img src="${PHOTO_URL}" alt="${FROM_NAME}" style="position:absolute;bottom:170px;right:150px;width:200px;height:200px;border-radius:50%;object-fit:cover;border:5px solid #1a3a5c;">`
     : "";
 
   return `<!DOCTYPE html>
@@ -47,75 +47,81 @@ function buildFront(lead) {
     width: 1800px; height: 2700px;
     font-family: 'Helvetica Neue', Arial, sans-serif;
     background: #ffffff;
-    display: flex;
-    flex-direction: column;
     position: relative;
+    overflow: hidden;
   }
   .header {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 130px;
     background: #1a3a5c;
-    padding: 52px 160px;
-    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    padding: 0 150px;
   }
   .header-label {
     color: #c8a84b;
-    font-size: 34px;
+    font-size: 32px;
     font-weight: 700;
-    letter-spacing: 7px;
+    letter-spacing: 6px;
     text-transform: uppercase;
   }
-  .body {
-    flex: 1;
-    padding: 90px 160px 60px;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
+  .content {
+    position: absolute;
+    top: 130px;
+    bottom: 380px;
+    left: 0; right: 0;
+    padding: 80px 150px;
+    overflow: hidden;
   }
   h1 {
-    font-size: 76px;
+    font-size: 68px;
     font-weight: 700;
     font-style: italic;
     color: #1a3a5c;
     line-height: 1.15;
-    margin-bottom: 52px;
+    margin-bottom: 48px;
   }
   p {
-    font-size: 47px;
+    font-size: 43px;
     color: #2d3748;
     line-height: 1.65;
-    margin-bottom: 36px;
+    margin-bottom: 34px;
+    overflow-wrap: break-word;
   }
   strong { color: #1a3a5c; font-weight: 700; }
   .footer {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 380px;
+    padding: 48px 150px 100px;
     border-top: 3px solid #1a3a5c;
-    padding-top: 52px;
   }
-  .cta { display: flex; align-items: center; gap: 60px; }
-  .cta-label { font-size: 46px; font-weight: 600; color: #1a3a5c; margin-bottom: 14px; }
-  .cta-url   { font-size: 36px; color: #718096; }
-  .sig { font-size: 54px; font-style: italic; color: #1a3a5c; margin-top: 44px; }
+  .cta { display: flex; align-items: center; gap: 55px; }
+  .cta-label { font-size: 42px; font-weight: 600; color: #1a3a5c; margin-bottom: 12px; }
+  .cta-url   { font-size: 33px; color: #718096; }
+  .sig { font-size: 50px; font-style: italic; color: #1a3a5c; margin-top: 38px; }
 </style>
 </head>
 <body>
   <div class="header">
     <div class="header-label">A Personal Note from ${FROM_NAME}</div>
   </div>
-  <div class="body">
-    <div>
-      <h1>${greeting}</h1>
-      <p>I'm a local investor building a small portfolio of apartment buildings in <strong>${lead.city}</strong> to hold long-term for my family.</p>
-      <p>If you've ever thought about selling <strong>${lead.address}</strong> — on your own timeline, no agents, no listing hassle — I'd love a private conversation.</p>
-      <p>Scan the QR code below to let me know you're open to talking and I'll reach out to you directly.</p>
-    </div>
-    <div class="footer">
-      <div class="cta">
-        <img src="${qrUrl}" width="200" height="200" alt="Scan to respond">
-        <div>
-          <div class="cta-label">Scan to connect</div>
-          <div class="cta-url">${SITE_URL}/respond.html</div>
-        </div>
+  <div class="content">
+    <h1>${greeting}</h1>
+    <p>I'm a local investor building a small portfolio of apartment buildings in <strong>${lead.city}</strong> to hold long-term for my family.</p>
+    <p>If you've ever thought about selling <strong>${lead.address}</strong> — on your own timeline, no agents, no listing hassle — I'd love a private conversation.</p>
+    <p>Scan the QR code below to let me know you're open to talking and I'll reach out to you directly.</p>
+  </div>
+  <div class="footer">
+    <div class="cta">
+      <img src="${qrUrl}" width="180" height="180" alt="Scan to respond">
+      <div>
+        <div class="cta-label">Scan to connect</div>
+        <div class="cta-url">${SITE_URL}/respond.html</div>
       </div>
-      <div class="sig">— ${FROM_NAME}</div>
     </div>
+    <div class="sig">— ${FROM_NAME}</div>
   </div>
   ${photoHtml}
 </body>
@@ -142,75 +148,81 @@ function buildFollowUpFront(lead) {
     width: 1800px; height: 2700px;
     font-family: 'Helvetica Neue', Arial, sans-serif;
     background: #ffffff;
-    display: flex;
-    flex-direction: column;
     position: relative;
+    overflow: hidden;
   }
   .header {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 130px;
     background: #78350f;
-    padding: 52px 160px;
-    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    padding: 0 150px;
   }
   .header-label {
     color: #fde68a;
-    font-size: 34px;
+    font-size: 32px;
     font-weight: 700;
-    letter-spacing: 7px;
+    letter-spacing: 6px;
     text-transform: uppercase;
   }
-  .body {
-    flex: 1;
-    padding: 90px 160px 60px;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
+  .content {
+    position: absolute;
+    top: 130px;
+    bottom: 380px;
+    left: 0; right: 0;
+    padding: 80px 150px;
+    overflow: hidden;
   }
   h1 {
-    font-size: 76px;
+    font-size: 68px;
     font-weight: 700;
     font-style: italic;
     color: #1a3a5c;
     line-height: 1.15;
-    margin-bottom: 52px;
+    margin-bottom: 48px;
   }
   p {
-    font-size: 47px;
+    font-size: 43px;
     color: #2d3748;
     line-height: 1.65;
-    margin-bottom: 36px;
+    margin-bottom: 34px;
+    overflow-wrap: break-word;
   }
   strong { color: #1a3a5c; font-weight: 700; }
   .footer {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 380px;
+    padding: 48px 150px 100px;
     border-top: 3px solid #1a3a5c;
-    padding-top: 52px;
   }
-  .cta { display: flex; align-items: center; gap: 60px; }
-  .cta-label { font-size: 46px; font-weight: 600; color: #1a3a5c; margin-bottom: 14px; }
-  .cta-url   { font-size: 36px; color: #718096; }
-  .sig { font-size: 54px; font-style: italic; color: #1a3a5c; margin-top: 44px; }
+  .cta { display: flex; align-items: center; gap: 55px; }
+  .cta-label { font-size: 42px; font-weight: 600; color: #1a3a5c; margin-bottom: 12px; }
+  .cta-url   { font-size: 33px; color: #718096; }
+  .sig { font-size: 50px; font-style: italic; color: #1a3a5c; margin-top: 38px; }
 </style>
 </head>
 <body>
   <div class="header">
     <div class="header-label">Following Up — ${FROM_NAME}</div>
   </div>
-  <div class="body">
-    <div>
-      <h1>${greeting}</h1>
-      <p>I reached out a few weeks ago about <strong>${lead.address}</strong> and wanted to follow up one last time.</p>
-      <p>I'm a local investor — I buy and hold, not flip. My goal is to build a small portfolio of well-kept buildings in <strong>${lead.city}</strong> that I can pass on to my family. I'm not looking to displace anyone.</p>
-      <p>If selling has ever crossed your mind, scan the QR code below and I'll be in touch on your schedule — no pressure, no obligation.</p>
-    </div>
-    <div class="footer">
-      <div class="cta">
-        <img src="${qrUrl}" width="200" height="200" alt="Scan to respond">
-        <div>
-          <div class="cta-label">Scan to connect</div>
-          <div class="cta-url">${SITE_URL}/respond.html</div>
-        </div>
+  <div class="content">
+    <h1>${greeting}</h1>
+    <p>I reached out a few weeks ago about <strong>${lead.address}</strong> and wanted to follow up one last time.</p>
+    <p>I'm a local investor — I buy and hold, not flip. My goal is to build a small portfolio of well-kept buildings in <strong>${lead.city}</strong> that I can pass on to my family. I'm not looking to displace anyone.</p>
+    <p>If selling has ever crossed your mind, scan the QR code below and I'll be in touch on your schedule — no pressure, no obligation.</p>
+  </div>
+  <div class="footer">
+    <div class="cta">
+      <img src="${qrUrl}" width="180" height="180" alt="Scan to respond">
+      <div>
+        <div class="cta-label">Scan to connect</div>
+        <div class="cta-url">${SITE_URL}/respond.html</div>
       </div>
-      <div class="sig">— ${FROM_NAME}</div>
     </div>
+    <div class="sig">— ${FROM_NAME}</div>
   </div>
   ${photoHtml}
 </body>
@@ -229,48 +241,50 @@ function buildBack() {
     font-family: 'Helvetica Neue', Arial, sans-serif;
     background: #ffffff;
     position: relative;
+    overflow: hidden;
   }
   .left {
     position: absolute;
     left: 0; top: 0;
-    width: 880px; height: 2700px;
+    width: 870px; height: 2700px;
     border-right: 3px solid #e2e8f0;
+    padding: 0 120px;
     display: flex;
     flex-direction: column;
     justify-content: center;
-    padding: 120px 130px;
   }
-  .left-accent {
-    width: 80px;
-    height: 8px;
+  .accent {
+    width: 70px;
+    height: 7px;
     background: #c8a84b;
-    margin-bottom: 50px;
+    margin-bottom: 44px;
   }
   .left h2 {
-    font-size: 64px;
+    font-size: 56px;
     font-weight: 700;
     color: #1a3a5c;
     line-height: 1.25;
-    margin-bottom: 50px;
+    margin-bottom: 44px;
   }
   .left p {
-    font-size: 44px;
+    font-size: 40px;
     color: #4a5568;
     line-height: 1.65;
-    margin-bottom: 36px;
+    margin-bottom: 32px;
+    overflow-wrap: break-word;
   }
-  .left .from {
-    font-size: 40px;
-    color: #1a3a5c;
+  .from {
+    font-size: 38px;
     font-style: italic;
-    margin-top: 20px;
+    color: #1a3a5c;
+    margin-top: 16px;
   }
   .address-block {
     position: absolute;
-    right: 100px;
-    bottom: 360px;
-    width: 780px;
-    font-size: 46px;
+    right: 90px;
+    bottom: 340px;
+    width: 760px;
+    font-size: 40px;
     line-height: 1.6;
     color: #111;
   }
@@ -278,10 +292,10 @@ function buildBack() {
 </head>
 <body>
   <div class="left">
-    <div class="left-accent"></div>
+    <div class="accent"></div>
     <h2>Thinking about selling your property?</h2>
     <p>I purchase multifamily buildings directly — no listings, no commissions, no hassle.</p>
-    <p>If the timing is ever right for you, I'd genuinely love to connect.</p>
+    <p>If the timing is ever right, I'd genuinely love to connect.</p>
     <div class="from">— ${FROM_NAME}</div>
   </div>
   <div class="address-block">{{address_block}}</div>
