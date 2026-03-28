@@ -9,6 +9,7 @@
 //   FROM_STATE           — your state (default: MA)
 //   FROM_ZIP             — your zip code
 //   VITE_SITE_URL        — your Vercel site URL (e.g. https://yoursite.vercel.app)
+//   PHOTO_URL            — (optional) publicly accessible headshot image URL
 
 const LOB_API_KEY        = process.env.LOB_API_KEY;
 const FROM_NAME          = process.env.FROM_NAME;
@@ -16,8 +17,7 @@ const FROM_ADDRESS_LINE1 = process.env.FROM_ADDRESS_LINE1;
 const FROM_CITY          = process.env.FROM_CITY;
 const FROM_STATE         = process.env.FROM_STATE || "MA";
 const FROM_ZIP           = process.env.FROM_ZIP;
-const FROM_PHONE         = process.env.FROM_PHONE || "";
-const PHOTO_URL          = process.env.PHOTO_URL || "";   // optional headshot URL
+const PHOTO_URL          = process.env.PHOTO_URL || "";
 const SITE_URL           = (process.env.VITE_SITE_URL || "").replace(/\/$/, "");
 
 function getFirstName(ownerName, ownerType) {
@@ -27,14 +27,17 @@ function getFirstName(ownerName, ownerType) {
   return ownerName.split(" ")[0];
 }
 
+// Lob renders HTML at ~150 DPI → 6x9 card = ~900x1350px viewport.
+// All dimensions are calibrated to this canvas size.
+
 function buildFront(lead) {
   const firstName   = getFirstName(lead.ownerName, lead.ownerType);
   const greeting    = firstName ? `Hi ${firstName},` : "Dear Property Owner,";
   const responseUrl = `${SITE_URL}/respond.html?lid=${lead.id}&name=${encodeURIComponent(lead.ownerName)}&addr=${encodeURIComponent(lead.address + ", " + lead.city)}`;
-  const qrUrl       = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&color=1a3a5c&data=${encodeURIComponent(responseUrl)}`;
+  const qrUrl       = `https://api.qrserver.com/v1/create-qr-code/?size=90x90&color=1a3a5c&data=${encodeURIComponent(responseUrl)}`;
 
   const photoHtml = PHOTO_URL
-    ? `<img src="${PHOTO_URL}" alt="${FROM_NAME}" style="position:absolute;bottom:170px;right:150px;width:200px;height:200px;border-radius:50%;object-fit:cover;border:5px solid #1a3a5c;">`
+    ? `<img src="${PHOTO_URL}" alt="${FROM_NAME}" style="position:absolute;bottom:82px;right:75px;width:95px;height:95px;border-radius:50%;object-fit:cover;border:3px solid #1a3a5c;">`
     : "";
 
   return `<!DOCTYPE html>
@@ -44,7 +47,7 @@ function buildFront(lead) {
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
-    width: 1800px; height: 2700px;
+    width: 900px; height: 1350px;
     font-family: 'Helvetica Neue', Arial, sans-serif;
     background: #ffffff;
     position: relative;
@@ -52,55 +55,51 @@ function buildFront(lead) {
   }
   .header {
     position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 130px;
+    top: 0; left: 0; right: 0; height: 64px;
     background: #1a3a5c;
-    display: flex;
-    align-items: center;
-    padding: 0 150px;
+    display: flex; align-items: center;
+    padding: 0 75px;
   }
   .header-label {
     color: #c8a84b;
-    font-size: 32px;
+    font-size: 11px;
     font-weight: 700;
-    letter-spacing: 6px;
+    letter-spacing: 3px;
     text-transform: uppercase;
   }
   .content {
     position: absolute;
-    top: 130px;
-    bottom: 380px;
+    top: 64px; bottom: 190px;
     left: 0; right: 0;
-    padding: 80px 150px;
+    padding: 38px 75px 24px;
     overflow: hidden;
   }
   h1 {
-    font-size: 68px;
+    font-size: 27px;
     font-weight: 700;
     font-style: italic;
     color: #1a3a5c;
-    line-height: 1.15;
-    margin-bottom: 48px;
+    line-height: 1.2;
+    margin-bottom: 20px;
   }
   p {
-    font-size: 43px;
+    font-size: 13.5px;
     color: #2d3748;
     line-height: 1.65;
-    margin-bottom: 34px;
+    margin-bottom: 13px;
     overflow-wrap: break-word;
   }
   strong { color: #1a3a5c; font-weight: 700; }
   .footer {
     position: absolute;
-    bottom: 0; left: 0; right: 0;
-    height: 380px;
-    padding: 48px 150px 100px;
-    border-top: 3px solid #1a3a5c;
+    bottom: 0; left: 0; right: 0; height: 190px;
+    padding: 20px 75px 48px;
+    border-top: 1.5px solid #1a3a5c;
   }
-  .cta { display: flex; align-items: center; gap: 55px; }
-  .cta-label { font-size: 42px; font-weight: 600; color: #1a3a5c; margin-bottom: 12px; }
-  .cta-url   { font-size: 33px; color: #718096; }
-  .sig { font-size: 50px; font-style: italic; color: #1a3a5c; margin-top: 38px; }
+  .cta { display: flex; align-items: center; gap: 18px; }
+  .cta-label { font-size: 12.5px; font-weight: 600; color: #1a3a5c; margin-bottom: 4px; }
+  .cta-url   { font-size: 10px; color: #718096; }
+  .sig { font-size: 14px; font-style: italic; color: #1a3a5c; margin-top: 12px; }
 </style>
 </head>
 <body>
@@ -115,7 +114,7 @@ function buildFront(lead) {
   </div>
   <div class="footer">
     <div class="cta">
-      <img src="${qrUrl}" width="180" height="180" alt="Scan to respond">
+      <img src="${qrUrl}" width="90" height="90" alt="Scan to respond">
       <div>
         <div class="cta-label">Scan to connect</div>
         <div class="cta-url">${SITE_URL}/respond.html</div>
@@ -132,10 +131,10 @@ function buildFollowUpFront(lead) {
   const firstName   = getFirstName(lead.ownerName, lead.ownerType);
   const greeting    = firstName ? `Hi ${firstName},` : "Dear Property Owner,";
   const responseUrl = `${SITE_URL}/respond.html?lid=${lead.id}&name=${encodeURIComponent(lead.ownerName)}&addr=${encodeURIComponent(lead.address + ", " + lead.city)}`;
-  const qrUrl       = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&color=1a3a5c&data=${encodeURIComponent(responseUrl)}`;
+  const qrUrl       = `https://api.qrserver.com/v1/create-qr-code/?size=90x90&color=1a3a5c&data=${encodeURIComponent(responseUrl)}`;
 
   const photoHtml = PHOTO_URL
-    ? `<img src="${PHOTO_URL}" alt="${FROM_NAME}" style="position:absolute;bottom:160px;right:160px;width:220px;height:220px;border-radius:50%;object-fit:cover;border:5px solid #1a3a5c;">`
+    ? `<img src="${PHOTO_URL}" alt="${FROM_NAME}" style="position:absolute;bottom:82px;right:75px;width:95px;height:95px;border-radius:50%;object-fit:cover;border:3px solid #1a3a5c;">`
     : "";
 
   return `<!DOCTYPE html>
@@ -145,7 +144,7 @@ function buildFollowUpFront(lead) {
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
-    width: 1800px; height: 2700px;
+    width: 900px; height: 1350px;
     font-family: 'Helvetica Neue', Arial, sans-serif;
     background: #ffffff;
     position: relative;
@@ -153,55 +152,51 @@ function buildFollowUpFront(lead) {
   }
   .header {
     position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 130px;
+    top: 0; left: 0; right: 0; height: 64px;
     background: #78350f;
-    display: flex;
-    align-items: center;
-    padding: 0 150px;
+    display: flex; align-items: center;
+    padding: 0 75px;
   }
   .header-label {
     color: #fde68a;
-    font-size: 32px;
+    font-size: 11px;
     font-weight: 700;
-    letter-spacing: 6px;
+    letter-spacing: 3px;
     text-transform: uppercase;
   }
   .content {
     position: absolute;
-    top: 130px;
-    bottom: 380px;
+    top: 64px; bottom: 190px;
     left: 0; right: 0;
-    padding: 80px 150px;
+    padding: 38px 75px 24px;
     overflow: hidden;
   }
   h1 {
-    font-size: 68px;
+    font-size: 27px;
     font-weight: 700;
     font-style: italic;
     color: #1a3a5c;
-    line-height: 1.15;
-    margin-bottom: 48px;
+    line-height: 1.2;
+    margin-bottom: 20px;
   }
   p {
-    font-size: 43px;
+    font-size: 13.5px;
     color: #2d3748;
     line-height: 1.65;
-    margin-bottom: 34px;
+    margin-bottom: 13px;
     overflow-wrap: break-word;
   }
   strong { color: #1a3a5c; font-weight: 700; }
   .footer {
     position: absolute;
-    bottom: 0; left: 0; right: 0;
-    height: 380px;
-    padding: 48px 150px 100px;
-    border-top: 3px solid #1a3a5c;
+    bottom: 0; left: 0; right: 0; height: 190px;
+    padding: 20px 75px 48px;
+    border-top: 1.5px solid #1a3a5c;
   }
-  .cta { display: flex; align-items: center; gap: 55px; }
-  .cta-label { font-size: 42px; font-weight: 600; color: #1a3a5c; margin-bottom: 12px; }
-  .cta-url   { font-size: 33px; color: #718096; }
-  .sig { font-size: 50px; font-style: italic; color: #1a3a5c; margin-top: 38px; }
+  .cta { display: flex; align-items: center; gap: 18px; }
+  .cta-label { font-size: 12.5px; font-weight: 600; color: #1a3a5c; margin-bottom: 4px; }
+  .cta-url   { font-size: 10px; color: #718096; }
+  .sig { font-size: 14px; font-style: italic; color: #1a3a5c; margin-top: 12px; }
 </style>
 </head>
 <body>
@@ -216,7 +211,7 @@ function buildFollowUpFront(lead) {
   </div>
   <div class="footer">
     <div class="cta">
-      <img src="${qrUrl}" width="180" height="180" alt="Scan to respond">
+      <img src="${qrUrl}" width="90" height="90" alt="Scan to respond">
       <div>
         <div class="cta-label">Scan to connect</div>
         <div class="cta-url">${SITE_URL}/respond.html</div>
@@ -237,7 +232,7 @@ function buildBack() {
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
-    width: 1800px; height: 2700px;
+    width: 900px; height: 1350px;
     font-family: 'Helvetica Neue', Arial, sans-serif;
     background: #ffffff;
     position: relative;
@@ -246,45 +241,44 @@ function buildBack() {
   .left {
     position: absolute;
     left: 0; top: 0;
-    width: 870px; height: 2700px;
-    border-right: 3px solid #e2e8f0;
-    padding: 0 120px;
+    width: 435px; height: 1350px;
+    border-right: 1.5px solid #e2e8f0;
+    padding: 0 55px;
     display: flex;
     flex-direction: column;
     justify-content: center;
   }
   .accent {
-    width: 70px;
-    height: 7px;
+    width: 36px; height: 4px;
     background: #c8a84b;
-    margin-bottom: 44px;
+    margin-bottom: 22px;
   }
   .left h2 {
-    font-size: 56px;
+    font-size: 19px;
     font-weight: 700;
     color: #1a3a5c;
     line-height: 1.25;
-    margin-bottom: 44px;
+    margin-bottom: 18px;
   }
   .left p {
-    font-size: 40px;
+    font-size: 13px;
     color: #4a5568;
     line-height: 1.65;
-    margin-bottom: 32px;
+    margin-bottom: 12px;
     overflow-wrap: break-word;
   }
   .from {
-    font-size: 38px;
+    font-size: 13px;
     font-style: italic;
     color: #1a3a5c;
-    margin-top: 16px;
+    margin-top: 8px;
   }
   .address-block {
     position: absolute;
-    right: 90px;
-    bottom: 340px;
-    width: 760px;
-    font-size: 40px;
+    right: 40px;
+    bottom: 170px;
+    width: 380px;
+    font-size: 13px;
     line-height: 1.6;
     color: #111;
   }
