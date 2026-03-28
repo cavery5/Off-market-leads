@@ -27,74 +27,8 @@ function getFirstName(ownerName, ownerType) {
   return ownerName.split(" ")[0];
 }
 
-// Shared CSS for front templates
-function frontStyles(headerBg, labelColor) {
-  return `
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body {
-    width: 900px; height: 1350px;
-    font-family: 'Helvetica Neue', Arial, sans-serif;
-    background: #ffffff;
-  }
-  body {
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-  .header {
-    flex: 0 0 64px;
-    background: ${headerBg};
-    display: flex; align-items: center;
-    padding: 0 75px;
-  }
-  .header-label {
-    color: ${labelColor};
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 3px;
-    text-transform: uppercase;
-  }
-  .content {
-    flex: 1 1 auto;
-    min-height: 0;
-    padding: 36px 75px 20px;
-    overflow: hidden;
-  }
-  h1 {
-    font-size: 27px;
-    font-weight: 700;
-    font-style: italic;
-    color: #1a3a5c;
-    line-height: 1.2;
-    margin-bottom: 18px;
-  }
-  p {
-    font-size: 13.5px;
-    color: #2d3748;
-    line-height: 1.65;
-    margin-bottom: 12px;
-    overflow-wrap: break-word;
-  }
-  strong { color: #1a3a5c; font-weight: 700; }
-  .footer {
-    flex: 0 0 190px;
-    padding: 18px 75px 46px;
-    border-top: 1.5px solid #d1d5db;
-    position: relative;
-  }
-  .cta { display: flex; align-items: center; gap: 18px; }
-  .cta-label { font-size: 12.5px; font-weight: 600; color: #1a3a5c; margin-bottom: 4px; }
-  .cta-url   { font-size: 10px; color: #718096; }
-  .sig { font-size: 14px; font-style: italic; color: #1a3a5c; margin-top: 14px; }
-  .photo {
-    position: absolute;
-    bottom: 46px; right: 75px;
-    width: 90px; height: 90px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 3px solid #1a3a5c;
-  }`;
-}
+// Table-based layout is the most reliable across HTML renderers.
+// Lob renders at ~150 DPI → 6x9 card ≈ 900x1350px.
 
 function buildFront(lead) {
   const firstName   = getFirstName(lead.ownerName, lead.ownerType);
@@ -102,31 +36,62 @@ function buildFront(lead) {
   const responseUrl = `${SITE_URL}/respond.html?lid=${lead.id}&name=${encodeURIComponent(lead.ownerName)}&addr=${encodeURIComponent(lead.address + ", " + lead.city)}`;
   const qrUrl       = `https://api.qrserver.com/v1/create-qr-code/?size=90x90&color=1a3a5c&data=${encodeURIComponent(responseUrl)}`;
 
+  const photoHtml = PHOTO_URL
+    ? `<img src="${PHOTO_URL}" width="85" height="85" style="border-radius:50%;object-fit:cover;border:3px solid #1a3a5c;display:block;">`
+    : "";
+
   return `<!DOCTYPE html>
-<html><head><meta charset="utf-8">
-<style>${frontStyles("#1a3a5c", "#c8a84b")}</style>
+<html>
+<head><meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { margin: 0; padding: 0; background: #fff; font-family: 'Helvetica Neue', Arial, sans-serif; }
+  h1 { font-size: 27px; font-weight: 700; font-style: italic; color: #1a3a5c; line-height: 1.2; margin-bottom: 16px; }
+  p  { font-size: 13.5px; color: #2d3748; line-height: 1.65; margin-bottom: 11px; }
+  strong { color: #1a3a5c; font-weight: 700; }
+</style>
 </head>
 <body>
-  <div class="header">
-    <div class="header-label">A Personal Note from ${FROM_NAME}</div>
-  </div>
-  <div class="content">
-    <h1>${greeting}</h1>
-    <p>I'm a local investor building a small portfolio of apartment buildings in <strong>${lead.city}</strong> to hold long-term for my family.</p>
-    <p>If you've ever thought about selling <strong>${lead.address}</strong> — on your own timeline, no agents, no listing hassle — I'd love a private conversation.</p>
-    <p>Scan the QR code below to let me know you're open to talking and I'll reach out to you directly.</p>
-  </div>
-  <div class="footer">
-    <div class="cta">
-      <img src="${qrUrl}" width="90" height="90" alt="Scan to respond">
-      <div>
-        <div class="cta-label">Scan to connect</div>
-        <div class="cta-url">${SITE_URL}/respond.html</div>
-      </div>
-    </div>
-    <div class="sig">— ${FROM_NAME}</div>
-    ${PHOTO_URL ? `<img class="photo" src="${PHOTO_URL}" alt="${FROM_NAME}">` : ""}
-  </div>
+<table width="900" height="1350" cellpadding="0" cellspacing="0" border="0" style="width:900px;height:1350px;">
+  <tr height="64">
+    <td style="background:#1a3a5c;padding:0 75px;vertical-align:middle;">
+      <span style="color:#c8a84b;font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;font-family:'Helvetica Neue',Arial,sans-serif;">A Personal Note from ${FROM_NAME}</span>
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:36px 75px 20px;vertical-align:top;background:#fff;">
+      <h1>${greeting}</h1>
+      <p>I'm a local investor building a small portfolio of apartment buildings in <strong>${lead.city}</strong> to hold long-term for my family.</p>
+      <p>If you've ever thought about selling <strong>${lead.address}</strong> — on your own timeline, no agents, no listing hassle — I'd love a private conversation.</p>
+      <p>Scan the QR code below to let me know you're open to talking and I'll reach out to you directly.</p>
+    </td>
+  </tr>
+  <tr height="190">
+    <td style="padding:18px 75px 46px;border-top:1.5px solid #d1d5db;vertical-align:top;background:#fff;">
+      <table cellpadding="0" cellspacing="0" border="0" width="100%">
+        <tr>
+          <td style="vertical-align:middle;">
+            <table cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td style="padding-right:18px;vertical-align:middle;">
+                  <img src="${qrUrl}" width="90" height="90" alt="Scan to respond">
+                </td>
+                <td style="vertical-align:middle;">
+                  <div style="font-size:12.5px;font-weight:600;color:#1a3a5c;margin-bottom:4px;font-family:'Helvetica Neue',Arial,sans-serif;">Scan to connect</div>
+                  <div style="font-size:10px;color:#718096;font-family:'Helvetica Neue',Arial,sans-serif;">${SITE_URL}/respond.html</div>
+                  <div style="font-size:14px;font-style:italic;color:#1a3a5c;margin-top:12px;font-family:'Helvetica Neue',Arial,sans-serif;">— ${FROM_NAME}</div>
+                </td>
+              </tr>
+            </table>
+          </td>
+          <td style="vertical-align:bottom;text-align:right;">
+            ${photoHtml}
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
 </body>
 </html>`;
 }
@@ -137,108 +102,90 @@ function buildFollowUpFront(lead) {
   const responseUrl = `${SITE_URL}/respond.html?lid=${lead.id}&name=${encodeURIComponent(lead.ownerName)}&addr=${encodeURIComponent(lead.address + ", " + lead.city)}`;
   const qrUrl       = `https://api.qrserver.com/v1/create-qr-code/?size=90x90&color=1a3a5c&data=${encodeURIComponent(responseUrl)}`;
 
+  const photoHtml = PHOTO_URL
+    ? `<img src="${PHOTO_URL}" width="85" height="85" style="border-radius:50%;object-fit:cover;border:3px solid #1a3a5c;display:block;">`
+    : "";
+
   return `<!DOCTYPE html>
-<html><head><meta charset="utf-8">
-<style>${frontStyles("#78350f", "#fde68a")}</style>
+<html>
+<head><meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { margin: 0; padding: 0; background: #fff; font-family: 'Helvetica Neue', Arial, sans-serif; }
+  h1 { font-size: 27px; font-weight: 700; font-style: italic; color: #1a3a5c; line-height: 1.2; margin-bottom: 16px; }
+  p  { font-size: 13.5px; color: #2d3748; line-height: 1.65; margin-bottom: 11px; }
+  strong { color: #1a3a5c; font-weight: 700; }
+</style>
 </head>
 <body>
-  <div class="header">
-    <div class="header-label">Following Up — ${FROM_NAME}</div>
-  </div>
-  <div class="content">
-    <h1>${greeting}</h1>
-    <p>I reached out a few weeks ago about <strong>${lead.address}</strong> and wanted to follow up one last time.</p>
-    <p>I'm a local investor — I buy and hold, not flip. My goal is to build a small portfolio of well-kept buildings in <strong>${lead.city}</strong> that I can pass on to my family. I'm not looking to displace anyone.</p>
-    <p>If selling has ever crossed your mind, scan the QR code below and I'll be in touch on your schedule — no pressure, no obligation.</p>
-  </div>
-  <div class="footer">
-    <div class="cta">
-      <img src="${qrUrl}" width="90" height="90" alt="Scan to respond">
-      <div>
-        <div class="cta-label">Scan to connect</div>
-        <div class="cta-url">${SITE_URL}/respond.html</div>
-      </div>
-    </div>
-    <div class="sig">— ${FROM_NAME}</div>
-    ${PHOTO_URL ? `<img class="photo" src="${PHOTO_URL}" alt="${FROM_NAME}">` : ""}
-  </div>
+<table width="900" height="1350" cellpadding="0" cellspacing="0" border="0" style="width:900px;height:1350px;">
+  <tr height="64">
+    <td style="background:#78350f;padding:0 75px;vertical-align:middle;">
+      <span style="color:#fde68a;font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;font-family:'Helvetica Neue',Arial,sans-serif;">Following Up — ${FROM_NAME}</span>
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:36px 75px 20px;vertical-align:top;background:#fff;">
+      <h1>${greeting}</h1>
+      <p>I reached out a few weeks ago about <strong>${lead.address}</strong> and wanted to follow up one last time.</p>
+      <p>I'm a local investor — I buy and hold, not flip. My goal is to build a small portfolio of well-kept buildings in <strong>${lead.city}</strong> that I can pass on to my family. I'm not looking to displace anyone.</p>
+      <p>If selling has ever crossed your mind, scan the QR code below and I'll be in touch on your schedule — no pressure, no obligation.</p>
+    </td>
+  </tr>
+  <tr height="190">
+    <td style="padding:18px 75px 46px;border-top:1.5px solid #d1d5db;vertical-align:top;background:#fff;">
+      <table cellpadding="0" cellspacing="0" border="0" width="100%">
+        <tr>
+          <td style="vertical-align:middle;">
+            <table cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td style="padding-right:18px;vertical-align:middle;">
+                  <img src="${qrUrl}" width="90" height="90" alt="Scan to respond">
+                </td>
+                <td style="vertical-align:middle;">
+                  <div style="font-size:12.5px;font-weight:600;color:#1a3a5c;margin-bottom:4px;font-family:'Helvetica Neue',Arial,sans-serif;">Scan to connect</div>
+                  <div style="font-size:10px;color:#718096;font-family:'Helvetica Neue',Arial,sans-serif;">${SITE_URL}/respond.html</div>
+                  <div style="font-size:14px;font-style:italic;color:#1a3a5c;margin-top:12px;font-family:'Helvetica Neue',Arial,sans-serif;">— ${FROM_NAME}</div>
+                </td>
+              </tr>
+            </table>
+          </td>
+          <td style="vertical-align:bottom;text-align:right;">
+            ${photoHtml}
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
 </body>
 </html>`;
 }
 
 function buildBack() {
   return `<!DOCTYPE html>
-<html><head><meta charset="utf-8">
+<html>
+<head><meta charset="utf-8">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body {
-    width: 900px; height: 1350px;
-    font-family: 'Helvetica Neue', Arial, sans-serif;
-    background: #ffffff;
-  }
-  body {
-    display: flex;
-    flex-direction: row;
-    overflow: hidden;
-  }
-  .left {
-    flex: 0 0 440px;
-    border-right: 1.5px solid #e2e8f0;
-    padding: 0 52px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-  }
-  .accent {
-    width: 36px; height: 4px;
-    background: #c8a84b;
-    margin-bottom: 20px;
-  }
-  .left h2 {
-    font-size: 19px;
-    font-weight: 700;
-    color: #1a3a5c;
-    line-height: 1.3;
-    margin-bottom: 16px;
-  }
-  .left p {
-    font-size: 13px;
-    color: #4a5568;
-    line-height: 1.65;
-    margin-bottom: 11px;
-    overflow-wrap: break-word;
-  }
-  .from {
-    font-size: 13px;
-    font-style: italic;
-    color: #1a3a5c;
-    margin-top: 8px;
-  }
-  .right {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
-    padding: 0 40px 170px 40px;
-  }
-  .address-block {
-    font-size: 13px;
-    line-height: 1.6;
-    color: #111;
-  }
+  body { margin: 0; padding: 0; background: #fff; font-family: 'Helvetica Neue', Arial, sans-serif; }
 </style>
 </head>
 <body>
-  <div class="left">
-    <div class="accent"></div>
-    <h2>Thinking about selling your property?</h2>
-    <p>I purchase multifamily buildings directly — no listings, no commissions, no hassle.</p>
-    <p>If the timing is ever right, I'd genuinely love to connect.</p>
-    <div class="from">— ${FROM_NAME}</div>
-  </div>
-  <div class="right">
-    <div class="address-block">{{address_block}}</div>
-  </div>
+<table width="900" height="1350" cellpadding="0" cellspacing="0" border="0" style="width:900px;height:1350px;">
+  <tr>
+    <td width="440" style="border-right:1.5px solid #e2e8f0;padding:0 52px;vertical-align:middle;">
+      <div style="width:36px;height:4px;background:#c8a84b;margin-bottom:20px;"></div>
+      <div style="font-size:19px;font-weight:700;color:#1a3a5c;line-height:1.3;margin-bottom:16px;font-family:'Helvetica Neue',Arial,sans-serif;">Thinking about selling your property?</div>
+      <div style="font-size:13px;color:#4a5568;line-height:1.65;margin-bottom:11px;font-family:'Helvetica Neue',Arial,sans-serif;">I purchase multifamily buildings directly — no listings, no commissions, no hassle.</div>
+      <div style="font-size:13px;color:#4a5568;line-height:1.65;margin-bottom:11px;font-family:'Helvetica Neue',Arial,sans-serif;">If the timing is ever right, I'd genuinely love to connect.</div>
+      <div style="font-size:13px;font-style:italic;color:#1a3a5c;margin-top:8px;font-family:'Helvetica Neue',Arial,sans-serif;">— ${FROM_NAME}</div>
+    </td>
+    <td style="vertical-align:bottom;padding:0 40px 170px 40px;">
+      <div style="font-size:13px;line-height:1.6;color:#111;font-family:'Helvetica Neue',Arial,sans-serif;">{{address_block}}</div>
+    </td>
+  </tr>
+</table>
 </body>
 </html>`;
 }
