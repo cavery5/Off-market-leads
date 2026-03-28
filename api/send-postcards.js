@@ -27,66 +27,85 @@ function getFirstName(ownerName, ownerType) {
   return ownerName.split(" ")[0];
 }
 
-// Table-based layout is the most reliable across HTML renderers.
-// Lob renders at ~150 DPI → 6x9 card ≈ 900x1350px.
+// Fetch an image URL and return it as a base64 data URI.
+// Lob's renderer blocks external image requests, so we embed all images inline.
+async function toDataUri(url) {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const buf = await res.arrayBuffer();
+    const b64 = Buffer.from(buf).toString("base64");
+    const ct  = res.headers.get("content-type") || "image/png";
+    return `data:${ct};base64,${b64}`;
+  } catch {
+    return null;
+  }
+}
 
-function buildFront(lead) {
-  const firstName   = getFirstName(lead.ownerName, lead.ownerType);
-  const greeting    = firstName ? `Hi ${firstName},` : "Dear Property Owner,";
-  const responseUrl = `${SITE_URL}/respond.html?lid=${lead.id}&name=${encodeURIComponent(lead.ownerName)}&addr=${encodeURIComponent(lead.address + ", " + lead.city)}`;
-  const qrUrl       = `https://api.qrserver.com/v1/create-qr-code/?size=90x90&color=1a3a5c&data=${encodeURIComponent(responseUrl)}`;
+function buildFront(lead, qrDataUri, photoDataUri, isFollowUp = false) {
+  const firstName = getFirstName(lead.ownerName, lead.ownerType);
+  const greeting  = firstName ? `Hi ${firstName},` : "Dear Property Owner,";
 
-  const photoHtml = PHOTO_URL
-    ? `<img src="${PHOTO_URL}" width="85" height="85" style="border-radius:50%;object-fit:cover;border:3px solid #1a3a5c;display:block;">`
-    : "";
+  const headerBg    = isFollowUp ? "#78350f" : "#1a3a5c";
+  const labelColor  = isFollowUp ? "#fde68a" : "#c8a84b";
+  const headerLabel = isFollowUp ? `Following Up \u2014 ${FROM_NAME}` : `A Personal Note from ${FROM_NAME}`;
+
+  const bodyLines = isFollowUp ? `
+    <p>I reached out a few weeks ago about <strong>${lead.address}</strong> and wanted to follow up one last time.</p>
+    <p>I'm a local investor \u2014 I buy and hold, not flip. My goal is to build a small portfolio of well-kept buildings in <strong>${lead.city}</strong> that I can pass on to my family. I'm not looking to displace anyone.</p>
+    <p>If selling has ever crossed your mind, scan the QR code below and I'll be in touch on your schedule \u2014 no pressure, no obligation.</p>
+  ` : `
+    <p>I'm a local investor building a small portfolio of apartment buildings in <strong>${lead.city}</strong> to hold long-term for my family.</p>
+    <p>If you've ever thought about selling <strong>${lead.address}</strong> \u2014 on your own timeline, no agents, no listing hassle \u2014 I'd love a private conversation.</p>
+    <p>Scan the QR code below to let me know you're open to talking and I'll reach out to you directly.</p>
+  `;
+
+  const qrImg    = qrDataUri   ? `<img src="${qrDataUri}" width="90" height="90" alt="QR">` : `<div style="width:90px;height:90px;background:#e2e8f0;"></div>`;
+  const photoImg = photoDataUri ? `<img src="${photoDataUri}" width="85" height="85" style="border-radius:50%;object-fit:cover;border:3px solid #1a3a5c;">` : "";
+
+  const responseUrl = `${SITE_URL}/respond.html`;
 
   return `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8">
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { margin: 0; padding: 0; background: #fff; font-family: 'Helvetica Neue', Arial, sans-serif; }
-  h1 { font-size: 27px; font-weight: 700; font-style: italic; color: #1a3a5c; line-height: 1.2; margin-bottom: 16px; }
-  p  { font-size: 13.5px; color: #2d3748; line-height: 1.65; margin-bottom: 11px; }
-  strong { color: #1a3a5c; font-weight: 700; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { margin:0; padding:0; font-family:'Helvetica Neue',Arial,sans-serif; background:#fff; }
+  h1 { font-size:27px; font-weight:700; font-style:italic; color:#1a3a5c; line-height:1.2; margin-bottom:16px; }
+  p  { font-size:13.5px; color:#2d3748; line-height:1.65; margin-bottom:11px; }
+  strong { color:#1a3a5c; font-weight:700; }
 </style>
 </head>
 <body>
-<table width="900" height="1350" cellpadding="0" cellspacing="0" border="0" style="width:900px;height:1350px;">
-  <tr height="64">
-    <td style="background:#1a3a5c;padding:0 75px;vertical-align:middle;">
-      <span style="color:#c8a84b;font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;font-family:'Helvetica Neue',Arial,sans-serif;">A Personal Note from ${FROM_NAME}</span>
+<table width="900" cellpadding="0" cellspacing="0" border="0">
+  <tr>
+    <td height="64" style="background:${headerBg};padding:0 75px;vertical-align:middle;">
+      <span style="color:${labelColor};font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;">${headerLabel}</span>
     </td>
   </tr>
   <tr>
-    <td style="padding:36px 75px 20px;vertical-align:top;background:#fff;">
+    <td style="padding:36px 75px 28px;vertical-align:top;">
       <h1>${greeting}</h1>
-      <p>I'm a local investor building a small portfolio of apartment buildings in <strong>${lead.city}</strong> to hold long-term for my family.</p>
-      <p>If you've ever thought about selling <strong>${lead.address}</strong> — on your own timeline, no agents, no listing hassle — I'd love a private conversation.</p>
-      <p>Scan the QR code below to let me know you're open to talking and I'll reach out to you directly.</p>
+      ${bodyLines}
     </td>
   </tr>
-  <tr height="190">
-    <td style="padding:18px 75px 46px;border-top:1.5px solid #d1d5db;vertical-align:top;background:#fff;">
-      <table cellpadding="0" cellspacing="0" border="0" width="100%">
+  <tr>
+    <td style="padding:18px 75px 36px;border-top:1.5px solid #d1d5db;vertical-align:top;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
         <tr>
           <td style="vertical-align:middle;">
             <table cellpadding="0" cellspacing="0" border="0">
               <tr>
-                <td style="padding-right:18px;vertical-align:middle;">
-                  <img src="${qrUrl}" width="90" height="90" alt="Scan to respond">
-                </td>
+                <td style="padding-right:16px;vertical-align:middle;">${qrImg}</td>
                 <td style="vertical-align:middle;">
-                  <div style="font-size:12.5px;font-weight:600;color:#1a3a5c;margin-bottom:4px;font-family:'Helvetica Neue',Arial,sans-serif;">Scan to connect</div>
-                  <div style="font-size:10px;color:#718096;font-family:'Helvetica Neue',Arial,sans-serif;">${SITE_URL}/respond.html</div>
-                  <div style="font-size:14px;font-style:italic;color:#1a3a5c;margin-top:12px;font-family:'Helvetica Neue',Arial,sans-serif;">— ${FROM_NAME}</div>
+                  <div style="font-size:12.5px;font-weight:600;color:#1a3a5c;margin-bottom:4px;">Scan to connect</div>
+                  <div style="font-size:10px;color:#718096;">${responseUrl}</div>
+                  <div style="font-size:14px;font-style:italic;color:#1a3a5c;margin-top:10px;">\u2014 ${FROM_NAME}</div>
                 </td>
               </tr>
             </table>
           </td>
-          <td style="vertical-align:bottom;text-align:right;">
-            ${photoHtml}
-          </td>
+          <td style="vertical-align:middle;text-align:right;">${photoImg}</td>
         </tr>
       </table>
     </td>
@@ -96,93 +115,32 @@ function buildFront(lead) {
 </html>`;
 }
 
-function buildFollowUpFront(lead) {
-  const firstName   = getFirstName(lead.ownerName, lead.ownerType);
-  const greeting    = firstName ? `Hi ${firstName},` : "Dear Property Owner,";
-  const responseUrl = `${SITE_URL}/respond.html?lid=${lead.id}&name=${encodeURIComponent(lead.ownerName)}&addr=${encodeURIComponent(lead.address + ", " + lead.city)}`;
-  const qrUrl       = `https://api.qrserver.com/v1/create-qr-code/?size=90x90&color=1a3a5c&data=${encodeURIComponent(responseUrl)}`;
-
-  const photoHtml = PHOTO_URL
-    ? `<img src="${PHOTO_URL}" width="85" height="85" style="border-radius:50%;object-fit:cover;border:3px solid #1a3a5c;display:block;">`
+function buildBack(photoDataUri) {
+  const photoImg = photoDataUri
+    ? `<img src="${photoDataUri}" width="70" height="70" style="border-radius:50%;object-fit:cover;border:2px solid #1a3a5c;margin-bottom:12px;">`
     : "";
 
   return `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8">
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { margin: 0; padding: 0; background: #fff; font-family: 'Helvetica Neue', Arial, sans-serif; }
-  h1 { font-size: 27px; font-weight: 700; font-style: italic; color: #1a3a5c; line-height: 1.2; margin-bottom: 16px; }
-  p  { font-size: 13.5px; color: #2d3748; line-height: 1.65; margin-bottom: 11px; }
-  strong { color: #1a3a5c; font-weight: 700; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { margin:0; padding:0; font-family:'Helvetica Neue',Arial,sans-serif; background:#fff; }
 </style>
 </head>
 <body>
-<table width="900" height="1350" cellpadding="0" cellspacing="0" border="0" style="width:900px;height:1350px;">
-  <tr height="64">
-    <td style="background:#78350f;padding:0 75px;vertical-align:middle;">
-      <span style="color:#fde68a;font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;font-family:'Helvetica Neue',Arial,sans-serif;">Following Up — ${FROM_NAME}</span>
-    </td>
-  </tr>
+<table width="900" height="1350" cellpadding="0" cellspacing="0" border="0" style="height:1350px;">
   <tr>
-    <td style="padding:36px 75px 20px;vertical-align:top;background:#fff;">
-      <h1>${greeting}</h1>
-      <p>I reached out a few weeks ago about <strong>${lead.address}</strong> and wanted to follow up one last time.</p>
-      <p>I'm a local investor — I buy and hold, not flip. My goal is to build a small portfolio of well-kept buildings in <strong>${lead.city}</strong> that I can pass on to my family. I'm not looking to displace anyone.</p>
-      <p>If selling has ever crossed your mind, scan the QR code below and I'll be in touch on your schedule — no pressure, no obligation.</p>
-    </td>
-  </tr>
-  <tr height="190">
-    <td style="padding:18px 75px 46px;border-top:1.5px solid #d1d5db;vertical-align:top;background:#fff;">
-      <table cellpadding="0" cellspacing="0" border="0" width="100%">
-        <tr>
-          <td style="vertical-align:middle;">
-            <table cellpadding="0" cellspacing="0" border="0">
-              <tr>
-                <td style="padding-right:18px;vertical-align:middle;">
-                  <img src="${qrUrl}" width="90" height="90" alt="Scan to respond">
-                </td>
-                <td style="vertical-align:middle;">
-                  <div style="font-size:12.5px;font-weight:600;color:#1a3a5c;margin-bottom:4px;font-family:'Helvetica Neue',Arial,sans-serif;">Scan to connect</div>
-                  <div style="font-size:10px;color:#718096;font-family:'Helvetica Neue',Arial,sans-serif;">${SITE_URL}/respond.html</div>
-                  <div style="font-size:14px;font-style:italic;color:#1a3a5c;margin-top:12px;font-family:'Helvetica Neue',Arial,sans-serif;">— ${FROM_NAME}</div>
-                </td>
-              </tr>
-            </table>
-          </td>
-          <td style="vertical-align:bottom;text-align:right;">
-            ${photoHtml}
-          </td>
-        </tr>
-      </table>
-    </td>
-  </tr>
-</table>
-</body>
-</html>`;
-}
-
-function buildBack() {
-  return `<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8">
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { margin: 0; padding: 0; background: #fff; font-family: 'Helvetica Neue', Arial, sans-serif; }
-</style>
-</head>
-<body>
-<table width="900" height="1350" cellpadding="0" cellspacing="0" border="0" style="width:900px;height:1350px;">
-  <tr>
-    <td width="440" style="border-right:1.5px solid #e2e8f0;padding:0 52px;vertical-align:middle;">
+    <td width="440" style="border-right:1.5px solid #e2e8f0;padding:60px 52px;vertical-align:middle;">
       <div style="width:36px;height:4px;background:#c8a84b;margin-bottom:20px;"></div>
-      <div style="font-size:19px;font-weight:700;color:#1a3a5c;line-height:1.3;margin-bottom:16px;font-family:'Helvetica Neue',Arial,sans-serif;">Thinking about selling your property?</div>
-      <div style="font-size:13px;color:#4a5568;line-height:1.65;margin-bottom:11px;font-family:'Helvetica Neue',Arial,sans-serif;">I purchase multifamily buildings directly — no listings, no commissions, no hassle.</div>
-      <div style="font-size:13px;color:#4a5568;line-height:1.65;margin-bottom:11px;font-family:'Helvetica Neue',Arial,sans-serif;">If the timing is ever right, I'd genuinely love to connect.</div>
-      <div style="font-size:13px;font-style:italic;color:#1a3a5c;margin-top:8px;font-family:'Helvetica Neue',Arial,sans-serif;">— ${FROM_NAME}</div>
+      <div style="font-size:20px;font-weight:700;color:#1a3a5c;line-height:1.3;margin-bottom:16px;">Thinking about selling your property?</div>
+      <div style="font-size:13px;color:#4a5568;line-height:1.65;margin-bottom:11px;">I purchase multifamily buildings directly \u2014 no listings, no commissions, no hassle.</div>
+      <div style="font-size:13px;color:#4a5568;line-height:1.65;margin-bottom:16px;">If the timing is ever right, I'd genuinely love to connect.</div>
+      ${photoImg}
+      <div style="font-size:13px;font-style:italic;color:#1a3a5c;">\u2014 ${FROM_NAME}</div>
     </td>
     <td style="vertical-align:bottom;padding:0 40px 170px 40px;">
-      <div style="font-size:13px;line-height:1.6;color:#111;font-family:'Helvetica Neue',Arial,sans-serif;">{{address_block}}</div>
+      <div style="font-size:13px;line-height:1.6;color:#111;">{{address_block}}</div>
     </td>
   </tr>
 </table>
@@ -209,6 +167,9 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "No leads provided" });
   }
 
+  // Pre-fetch photo once as data URI so Lob doesn't need external requests
+  const photoDataUri = PHOTO_URL ? await toDataUri(PHOTO_URL) : null;
+
   const from = {
     name:            FROM_NAME,
     address_line1:   FROM_ADDRESS_LINE1,
@@ -232,6 +193,13 @@ export default async function handler(req, res) {
       continue;
     }
 
+    // Generate QR code per lead and embed as data URI
+    const responseUrl = `${SITE_URL}/respond.html?lid=${lead.id}&name=${encodeURIComponent(lead.ownerName)}&addr=${encodeURIComponent(lead.address + ", " + lead.city)}`;
+    const qrApiUrl    = `https://api.qrserver.com/v1/create-qr-code/?size=90x90&color=1a3a5c&data=${encodeURIComponent(responseUrl)}`;
+    const qrDataUri   = await toDataUri(qrApiUrl);
+
+    const isFollowUp = (lead.mailHistory?.length ?? 0) > 0;
+
     const to = {
       name:            lead.ownerName,
       address_line1:   addrLine1,
@@ -244,14 +212,14 @@ export default async function handler(req, res) {
     try {
       const lobRes = await fetch("https://api.lob.com/v1/postcards", {
         method:  "POST",
-        headers: { "Authorization": authHeader, "Content-Type": "application/json" },
+        headers: { "Authorization": "Basic " + Buffer.from(LOB_API_KEY + ":").toString("base64"), "Content-Type": "application/json" },
         body: JSON.stringify({
-          description: `Outreach — ${lead.address}, ${lead.city}`,
+          description: `Outreach \u2014 ${lead.address}, ${lead.city}`,
           to,
           from,
           size:  "6x9",
-          front: (lead.mailHistory?.length ?? 0) > 0 ? buildFollowUpFront(lead) : buildFront(lead),
-          back:  buildBack(),
+          front: buildFront(lead, qrDataUri, photoDataUri, isFollowUp),
+          back:  buildBack(photoDataUri),
         }),
       });
 
