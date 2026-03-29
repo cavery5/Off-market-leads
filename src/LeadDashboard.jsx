@@ -231,6 +231,7 @@ export default function LeadDashboard() {
   const [campaign, setCampaign] = useState({ open: false, sending: false, results: null, type: "new" });
   const [selectedForMail, setSelectedForMail] = useState(new Set());
   const [addError, setAddError] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
     try { localStorage.setItem("offmarket_leads", JSON.stringify(leads)); } catch {}
@@ -944,7 +945,7 @@ Total cost: $0/month to start`,
 
       {/* ── Lead Detail Modal ── */}
       {selected && (
-        <div className="modal-overlay" onClick={() => setSelected(null)}>
+        <div className="modal-overlay" onClick={() => { setSelected(null); setConfirmDelete(false); }}>
           <div onClick={e => e.stopPropagation()}
             style={{ background: "#060b14", border: "1px solid #1e2d45", borderRadius: 8, width: "100%", maxWidth: 560, maxHeight: "90vh", overflowY: "auto" }}>
             <div style={{ padding: "16px 20px", borderBottom: "1px solid #1e2d45", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -957,7 +958,7 @@ Total cost: $0/month to start`,
                   <div style={{ fontSize: 22, fontWeight: 700, color: scoreColor(selected.score) }}>{selected.score}</div>
                   <div style={{ fontSize: 9, color: scoreColor(selected.score) }}>{scoreLabel(selected.score)}</div>
                 </div>
-                <button className="btn" onClick={() => setSelected(null)} style={{ background: "#1e2d45", color: "#64748b", padding: "6px 10px", borderRadius: 4 }}>✕</button>
+                <button className="btn" onClick={() => { setSelected(null); setConfirmDelete(false); }} style={{ background: "#1e2d45", color: "#64748b", padding: "6px 10px", borderRadius: 4 }}>✕</button>
               </div>
             </div>
 
@@ -1009,6 +1010,30 @@ Total cost: $0/month to start`,
                   style={{ background: "#1e2d45", color: "#94a3b8", padding: "8px 12px", borderRadius: 4, fontSize: 10, textAlign: "center", textDecoration: "none", display: "block", letterSpacing: "0.08em" }}>
                   📋 DEED SEARCH
                 </a>
+              </div>
+
+              <div style={{ marginTop: 20, borderTop: "1px solid #1e2d45", paddingTop: 16 }}>
+                {!confirmDelete ? (
+                  <button onClick={() => setConfirmDelete(true)}
+                    style={{ background: "transparent", border: "1px solid #7f1d1d", color: "#f87171", padding: "7px 14px", borderRadius: 4, fontSize: 10, letterSpacing: "0.08em", cursor: "pointer", fontFamily: "inherit" }}>
+                    DELETE LEAD
+                  </button>
+                ) : (
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontSize: 11, color: "#f87171" }}>Remove this lead permanently?</span>
+                    <button onClick={() => {
+                      setLeads(prev => prev.filter(l => l.id !== selected.id));
+                      setSelected(null);
+                      setConfirmDelete(false);
+                    }} style={{ background: "#7f1d1d", border: "none", color: "#fca5a5", padding: "6px 12px", borderRadius: 4, fontSize: 10, cursor: "pointer", fontFamily: "inherit" }}>
+                      YES, DELETE
+                    </button>
+                    <button onClick={() => setConfirmDelete(false)}
+                      style={{ background: "#1e2d45", border: "none", color: "#94a3b8", padding: "6px 12px", borderRadius: 4, fontSize: 10, cursor: "pointer", fontFamily: "inherit" }}>
+                      CANCEL
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
