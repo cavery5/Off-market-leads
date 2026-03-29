@@ -2,14 +2,10 @@
 // Calls Lob API to mail a 6x9 postcard to each provided lead.
 //
 // Set these in Vercel dashboard → Project → Settings → Environment Variables:
-//   LOB_API_KEY          — from lob.com (test_... for testing, live_... for real mail)
-//   FROM_NAME            — your full name (e.g. "Chris Avery")
-//   FROM_ADDRESS_LINE1   — your street address
-//   FROM_CITY            — your city
-//   FROM_STATE           — your state (default: MA)
-//   FROM_ZIP             — your zip code
-//   VITE_SITE_URL        — your Vercel site URL (e.g. https://yoursite.vercel.app)
-//   PHOTO_URL            — (optional) publicly accessible headshot image URL
+//   LOB_API_KEY          — from lob.com
+//   FROM_NAME, FROM_ADDRESS_LINE1, FROM_CITY, FROM_STATE, FROM_ZIP
+//   VITE_SITE_URL        — your Vercel app URL
+//   PHOTO_URL            — (optional) public headshot image URL
 
 const LOB_API_KEY        = process.env.LOB_API_KEY;
 const FROM_NAME          = process.env.FROM_NAME;
@@ -27,31 +23,80 @@ function getFirstName(ownerName, ownerType) {
   return ownerName.split(" ")[0];
 }
 
-// Back is short enough to inline (no images, just text + {{address_block}})
-function buildBack() {
-  const photoHtml = PHOTO_URL
-    ? `<img src="${PHOTO_URL}" width="60" height="60" style="border-radius:50%;border:2px solid #1a3a5c;margin-bottom:10px;display:block;">`
-    : "";
+async function fetchBase64(url) {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const buf = await res.arrayBuffer();
+    return "data:image/png;base64," + Buffer.from(buf).toString("base64");
+  } catch {
+    return null;
+  }
+}
 
-  return `<!DOCTYPE html><html><head><meta charset="utf-8">
-<style>*{margin:0;padding:0;box-sizing:border-box;}body{margin:0;padding:0;font-family:'Helvetica Neue',Arial,sans-serif;background:#fff;}</style>
-</head><body>
-<table width="900" height="1350" cellpadding="0" cellspacing="0" border="0" style="height:1350px;">
-<tr>
-<td width="440" style="border-right:1.5px solid #e2e8f0;padding:60px 48px;vertical-align:middle;">
-<div style="width:36px;height:4px;background:#c8a84b;margin-bottom:18px;"></div>
-<div style="font-size:20px;font-weight:700;color:#1a3a5c;line-height:1.3;margin-bottom:14px;">Thinking about selling your property?</div>
-<div style="font-size:13px;color:#4a5568;line-height:1.65;margin-bottom:10px;">I purchase multifamily buildings directly \u2014 no listings, no commissions, no hassle.</div>
-<div style="font-size:13px;color:#4a5568;line-height:1.65;margin-bottom:18px;">If the timing is ever right, I'd genuinely love to connect.</div>
-${photoHtml}
-<div style="font-size:13px;font-style:italic;color:#1a3a5c;">\u2014 ${FROM_NAME}</div>
+function buildFront(lead, qrDataUri, isFollowUp) {
+  const firstName   = getFirstName(lead.ownerName, lead.ownerType);
+  const greeting    = firstName ? `Hi ${firstName},` : "Dear Property Owner,";
+  const headerBg    = isFollowUp ? "#78350f" : "#1a3a5c";
+  const labelColor  = isFollowUp ? "#fde68a" : "#c8a84b";
+  const headerLabel = isFollowUp ? `Following Up - ${FROM_NAME}` : `A Personal Note from ${FROM_NAME}`;
+
+  const body = isFollowUp
+    ? `<p>I reached out a few weeks ago about <b>${lead.address}</b> and wanted to follow up one last time.</p>
+       <p>I'm a local investor - I buy and hold, not flip. My goal is to build a small portfolio of well-kept buildings in <b>${lead.city}</b> that I can pass on to my family.</p>
+       <p>If selling has ever crossed your mind, scan below and I'll be in touch on your schedule - no pressure.</p>`
+    : `<p>I'm a local investor building a small portfolio of apartment buildings in <b>${lead.city}</b> to hold long-term for my family.</p>
+       <p>If you've ever thought about selling <b>${lead.address}</b> - on your own timeline, no agents, no listing hassle - I'd love a private conversation.</p>
+       <p>Scan the QR code below to let me know you're open to talking.</p>`;
+
+  const qrTag  = qrDataUri  ? `<img src="${qrDataUri}" width="75" height="75">` : `<div style="width:75px;height:75px;background:#ddd"></div>`;
+  const photoTag = PHOTO_URL ? `<img src="${PHOTO_URL}" width="75" height="75" style="border-radius:50%;border:2px solid #1a3a5c;object-fit:cover">` : "";
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:Arial,sans-serif;background:#fff}
+p{font-size:13px;color:#333;line-height:1.6;margin-bottom:10px}
+b{color:#1a3a5c;font-weight:700}
+</style></head><body>
+<table width="900" cellpadding="0" cellspacing="0">
+<tr><td height="60" bgcolor="${headerBg}" style="padding:0 70px">
+<span style="color:${labelColor};font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase">${headerLabel}</span>
+</td></tr>
+<tr><td style="padding:30px 70px 20px;vertical-align:top">
+<p style="font-size:24px;font-weight:700;font-style:italic;color:#1a3a5c;margin-bottom:14px">${greeting}</p>
+${body}
+</td></tr>
+<tr><td style="padding:16px 70px 30px;border-top:1px solid #ddd">
+<table width="100%" cellpadding="0" cellspacing="0"><tr>
+<td style="vertical-align:middle;width:75px">${qrTag}</td>
+<td style="vertical-align:middle;padding-left:14px">
+<div style="font-size:11px;font-weight:700;color:#1a3a5c">Scan to connect</div>
+<div style="font-size:9px;color:#888;margin-top:3px">${SITE_URL}/respond.html</div>
+<div style="font-size:12px;font-style:italic;color:#1a3a5c;margin-top:8px">- ${FROM_NAME}</div>
 </td>
-<td style="vertical-align:bottom;padding:0 40px 170px;">
-<div style="font-size:13px;line-height:1.6;color:#111;">{{address_block}}</div>
+<td style="vertical-align:middle;text-align:right">${photoTag}</td>
+</tr></table>
+</td></tr>
+</table></body></html>`;
+}
+
+function buildBack() {
+  const photo = PHOTO_URL ? `<img src="${PHOTO_URL}" width="55" height="55" style="border-radius:50%;border:2px solid #1a3a5c;display:block;margin-bottom:10px">` : "";
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;font-family:Arial,sans-serif;background:#fff">
+<table width="900" height="1350" cellpadding="0" cellspacing="0" style="height:1350px">
+<tr>
+<td width="430" style="border-right:1px solid #e2e8f0;padding:50px 44px;vertical-align:middle">
+<div style="width:32px;height:4px;background:#c8a84b;margin-bottom:16px"></div>
+<div style="font-size:18px;font-weight:700;color:#1a3a5c;line-height:1.3;margin-bottom:13px">Thinking about selling your property?</div>
+<div style="font-size:12px;color:#4a5568;line-height:1.6;margin-bottom:10px">I purchase multifamily buildings directly - no listings, no commissions, no hassle.</div>
+<div style="font-size:12px;color:#4a5568;line-height:1.6;margin-bottom:16px">If the timing is ever right, I'd genuinely love to connect.</div>
+${photo}<div style="font-size:12px;font-style:italic;color:#1a3a5c">- ${FROM_NAME}</div>
+</td>
+<td style="vertical-align:bottom;padding:0 36px 160px 36px">
+<div style="font-size:12px;line-height:1.6;color:#111">{{address_block}}</div>
 </td>
 </tr>
-</table>
-</body></html>`;
+</table></body></html>`;
 }
 
 export default async function handler(req, res) {
@@ -67,7 +112,6 @@ export default async function handler(req, res) {
   if (!FROM_ADDRESS_LINE1) return res.status(500).json({ error: "FROM_ADDRESS_LINE1 is not set" });
   if (!FROM_CITY)          return res.status(500).json({ error: "FROM_CITY is not set" });
   if (!FROM_ZIP)           return res.status(500).json({ error: "FROM_ZIP is not set" });
-  if (!SITE_URL)           return res.status(500).json({ error: "VITE_SITE_URL is not set" });
 
   const { leads } = req.body;
   if (!Array.isArray(leads) || leads.length === 0) {
@@ -94,23 +138,22 @@ export default async function handler(req, res) {
     const addrZip   = lead.ownerZip    || "";
 
     if (!addrLine1 || !addrCity || !addrZip) {
-      results.push({ id: lead.id, status: "skipped", reason: "Missing mailing address fields (need street, city, zip)" });
+      results.push({ id: lead.id, status: "skipped", reason: "Missing mailing address fields" });
       continue;
     }
 
-    const isFollowUp = (lead.mailHistory?.length ?? 0) > 0;
-    const firstName  = getFirstName(lead.ownerName, lead.ownerType) || "";
+    const isFollowUp  = (lead.mailHistory?.length ?? 0) > 0;
+    const responseUrl = `${SITE_URL}/respond.html?lid=${lead.id}&name=${encodeURIComponent(lead.ownerName)}&addr=${encodeURIComponent(lead.address + ", " + lead.city)}`;
 
-    // Pass a URL so Lob fetches the HTML — avoids the 10K char inline limit
-    const frontParams = new URLSearchParams({
-      lid:       lead.id,
-      firstName,
-      address:   lead.address,
-      city:      lead.city,
-      ownerName: lead.ownerName,
-      followup:  isFollowUp ? "1" : "0",
-    });
-    const frontUrl = `${SITE_URL}/api/postcard-front?${frontParams.toString()}`;
+    // Fetch QR as small PNG (60x60) and embed as base64 — ~2KB, well within 10K HTML limit
+    const qrDataUri = await fetchBase64(
+      `https://api.qrserver.com/v1/create-qr-code/?size=75x75&format=png&color=1a3a5c&data=${encodeURIComponent(responseUrl)}`
+    );
+
+    const frontHtml = buildFront(lead, qrDataUri, isFollowUp);
+
+    // Log HTML size to Vercel logs for debugging
+    console.log(`[postcard] lead=${lead.id} frontHtmlLen=${frontHtml.length} backHtmlLen=${backHtml.length}`);
 
     const to = {
       name:            lead.ownerName,
@@ -126,11 +169,11 @@ export default async function handler(req, res) {
         method:  "POST",
         headers: { "Authorization": authHeader, "Content-Type": "application/json" },
         body: JSON.stringify({
-          description: `Outreach \u2014 ${lead.address}, ${lead.city}`,
+          description: `Outreach - ${lead.address}, ${lead.city}`,
           to,
           from,
           size:  "6x9",
-          front: frontUrl,
+          front: frontHtml,
           back:  backHtml,
         }),
       });
@@ -139,6 +182,7 @@ export default async function handler(req, res) {
       if (lobRes.ok) {
         results.push({ id: lead.id, lobId: data.id, expectedDelivery: data.expected_delivery_date, status: "sent" });
       } else {
+        // Return full Lob error for easier debugging
         results.push({ id: lead.id, status: "failed", reason: data.error?.message || JSON.stringify(data) });
       }
     } catch (err) {
