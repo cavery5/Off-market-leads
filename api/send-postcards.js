@@ -14,7 +14,12 @@ const FROM_CITY          = process.env.FROM_CITY;
 const FROM_STATE         = process.env.FROM_STATE || "MA";
 const FROM_ZIP           = process.env.FROM_ZIP;
 const PHOTO_URL          = process.env.PHOTO_URL || "";
-const SITE_URL           = (process.env.VITE_SITE_URL || "").replace(/\/$/, "");
+// Auto-prefix https:// so QR codes scan correctly even if env var omits it
+const SITE_URL = (() => {
+  let u = (process.env.VITE_SITE_URL || "").trim().replace(/\/$/, "");
+  if (u && !u.startsWith("http")) u = "https://" + u;
+  return u;
+})();
 
 function getFirstName(ownerName, ownerType) {
   if (["LLC", "Trust", "Estate"].includes(ownerType)) return null;
@@ -70,9 +75,9 @@ ${body}
 <table width="100%" cellpadding="0" cellspacing="0"><tr>
 <td style="vertical-align:middle;width:75px">${qrTag}</td>
 <td style="vertical-align:middle;padding-left:14px">
-<div style="font-size:11px;font-weight:700;color:#1a3a5c">Scan to connect</div>
-<div style="font-size:9px;color:#888;margin-top:3px">${SITE_URL}/respond.html</div>
-<div style="font-size:12px;font-style:italic;color:#1a3a5c;margin-top:8px">- ${FROM_NAME}</div>
+<div style="font-size:13px;font-weight:700;color:#1a3a5c">Scan to connect</div>
+<div style="font-size:11px;color:#555;margin-top:3px">I look forward to hearing from you.</div>
+<div style="font-size:13px;font-style:italic;color:#1a3a5c;margin-top:8px">- ${FROM_NAME}</div>
 </td>
 <td style="vertical-align:middle;text-align:right">${photoTag}</td>
 </tr></table>
@@ -81,19 +86,19 @@ ${body}
 }
 
 function buildBack() {
-  const photo = PHOTO_URL ? `<img src="${PHOTO_URL}" width="55" height="55" style="border-radius:50%;border:2px solid #1a3a5c;display:block;margin-bottom:10px">` : "";
+  const photo = PHOTO_URL ? `<img src="${PHOTO_URL}" width="70" height="70" style="border-radius:50%;border:3px solid #1a3a5c;display:block;margin-bottom:14px">` : "";
   return `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;font-family:Arial,sans-serif;background:#fff">
 <table width="900" height="1350" cellpadding="0" cellspacing="0" style="height:1350px">
 <tr>
-<td width="430" style="border-right:1px solid #e2e8f0;padding:50px 44px;vertical-align:middle">
-<div style="width:32px;height:4px;background:#c8a84b;margin-bottom:16px"></div>
-<div style="font-size:18px;font-weight:700;color:#1a3a5c;line-height:1.3;margin-bottom:13px">Thinking about selling your property?</div>
-<div style="font-size:12px;color:#4a5568;line-height:1.6;margin-bottom:10px">I purchase multifamily buildings directly - no listings, no commissions, no hassle.</div>
-<div style="font-size:12px;color:#4a5568;line-height:1.6;margin-bottom:16px">If the timing is ever right, I'd genuinely love to connect.</div>
-${photo}<div style="font-size:12px;font-style:italic;color:#1a3a5c">- ${FROM_NAME}</div>
+<td width="440" style="border-right:2px solid #e2e8f0;padding:80px 50px 50px 50px;vertical-align:top">
+<div style="width:44px;height:5px;background:#c8a84b;margin-bottom:22px"></div>
+<div style="font-size:24px;font-weight:700;color:#1a3a5c;line-height:1.3;margin-bottom:18px">Thinking about selling your property?</div>
+<div style="font-size:15px;color:#4a5568;line-height:1.7;margin-bottom:12px">I purchase multifamily buildings directly - no listings, no commissions, no hassle.</div>
+<div style="font-size:15px;color:#4a5568;line-height:1.7;margin-bottom:30px">If the timing is ever right, I would love to connect privately.</div>
+${photo}<div style="font-size:15px;font-weight:700;font-style:italic;color:#1a3a5c">- ${FROM_NAME}</div>
 </td>
-<td style="vertical-align:bottom;padding:0 36px 160px 36px">
-<div style="font-size:12px;line-height:1.6;color:#111">{{address_block}}</div>
+<td style="vertical-align:bottom;padding:0 40px 160px 40px">
+<div style="font-size:13px;line-height:1.7;color:#111">{{address_block}}</div>
 </td>
 </tr>
 </table></body></html>`;
